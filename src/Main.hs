@@ -53,49 +53,55 @@ instance Aeson.ToJSON Docs where
 main :: IO ()
 main = do
   packageList <- catch readCache refreshCache
-  docs <- getPackageDocs packageList
+  docs <- sequence $ fmap getPackageDocs (take 4 packageList)
+  BS.writeFile ("./cache/docs.json") (encode docs)
   print packageList
   print docs
 
 
-readCache :: IO (Maybe [Package])
+readCache :: IO [Package]
 readCache = do
   file <- BS.readFile "./cache/search.json"
-  return (Aeson.decode file :: Maybe [Package])
+  case Aeson.decode file :: Maybe [Package] of
+    Just xs -> return xs
+    Nothing -> return []
 
 
-refreshCache :: IOException -> IO (Maybe [Package])
+refreshCache :: IOException -> IO [Package]
 refreshCache _ = do
   packages <- getPackageList
-  return packages
+  case packages of
+    Just xs -> return xs
+    Nothing -> return []
 
 
 getPackageList :: IO (Maybe [Package])
 getPackageList = do
-  manager <- Http.newManager TLS.tlsManagerSettings
-  request <- Http.parseRequest "https://package.elm-lang.org/search.json"
-  response <- Http.httpLbs request manager
+  response <- request "https://package.elm-lang.org/search.json"
   let packages = Aeson.decode (Http.responseBody response) :: Maybe [Package]
   BS.writeFile "./cache/search.json" (encode packages)
   return packages
 
 
-getPackageDocs :: Maybe ([Package]) -> IO (Maybe [Docs])
-getPackageDocs packages =
-  case packages of
-    Just (hd@(Package n _):_) ->
-      do
-        manager <- Http.newManager TLS.tlsManagerSettings
-        request <- Http.parseRequest (toDocsUrl hd)
-        response <- Http.httpLbs request manager
-        let docs = Aeson.decode (Http.responseBody response) :: Maybe [Docs]
-        BS.writeFile ("./cache/foo.json") (encode docs)
-        return docs
-
-    _ ->
-      return Nothing
+getPackageDocs :: Package -> IO [Docs]
+getPackageDocs package = do
+  response <- request (toDocsUrl package)
+  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+    Just xs -> return xs
+    Nothing -> return []
 
 
 toDocsUrl :: Package -> String
 toDocsUrl (Package pName pVersions) =
   "https://package.elm-lang.org/packages/" ++ pName ++ "/" ++ head pVersions ++ "/docs.json"
+
+
+
+-- HTTP
+
+
+request :: String -> IO (Http.Response BS.ByteString)
+request path = do
+  m <- Http.newManager TLS.tlsManagerSettings
+  r <- Http.parseRequest path
+  Http.httpLbs r m
