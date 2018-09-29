@@ -1,9 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib
-  ( eps
-  ) where
+module Main ( main) where
 
 import Control.Exception
 import Data.Aeson as Aeson
@@ -53,8 +51,8 @@ instance Aeson.ToJSON Docs where
 
 -- MAIN
 
-eps :: IO ()
-eps = do
+main :: IO ()
+main = do
   packageList <- catch readCache refreshCache
   docs <- getPackageDocs packageList
   print packageList
