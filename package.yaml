@@ -22,6 +22,7 @@ dependencies:
   - http-client-tls
   - snap-core
   - snap-server
+  - text
 
 
 library:

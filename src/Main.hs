@@ -2,22 +2,26 @@
 
 module Main ( main) where
 
+import Control.Applicative
 import Control.Exception
 import Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.List as List
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as TE
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
-import Control.Applicative
 import qualified Snap.Core as Snap
 import qualified Snap.Util.FileServe as FileServe
 import qualified Snap.Http.Server as Server
+import Data.Text (Text)
 
 -- PACKAGE
 
 data Package = Package
-  { packageName :: String
-  , versions :: [String]
+  { packageName :: Text
+  , versions :: [Text]
   } deriving (Show)
 
 
@@ -36,8 +40,8 @@ instance Aeson.ToJSON Package where
 
 
 data Docs = Docs
-  { moduleName :: String
-  , comment :: String
+  { moduleName :: Text
+  , comment :: Text
   } deriving (Show)
 
 
@@ -59,7 +63,6 @@ main = do
   packageList <- catch readCache refreshCache
   -- docs <- sequence $ fmap getPackageDocs (take 4 packageList)
   -- BS.writeFile ("./cache/docs.json") (encode docs)
-  print packageList
   -- print docs
   server packageList
 
@@ -98,7 +101,7 @@ getPackageDocs package = do
 
 toDocsUrl :: Package -> String
 toDocsUrl (Package pName pVersions) =
-  "https://package.elm-lang.org/packages/" ++ pName ++ "/" ++ head pVersions ++ "/docs.json"
+  "https://package.elm-lang.org/packages/" ++ Text.unpack pName ++ "/" ++ (Text.unpack . head) pVersions ++ "/docs.json"
 
 
 
@@ -124,13 +127,18 @@ server msg =
 site :: [Package] -> Snap.Snap ()
 site packages =
   Snap.ifTop (Snap.writeLBS $ (encode packages)) <|>
-  Snap.route [ ("foo", Snap.writeBS "bar")
-             , ("echo/:echoparam", echoHandler)
-             ] <|>
-  Snap.dir "static" (FileServe.serveDirectory ".")
+  Snap.route [ ("search", searchHandler packages)]
 
 
-echoHandler :: Snap.Snap ()
-echoHandler = do
-  param <- Snap.getParam "echoparam"
-  maybe (Snap.writeBS "must specify echo/param in URL") Snap.writeBS param
+searchHandler :: [Package] -> Snap.Snap ()
+searchHandler packages= do
+  term <- Snap.getQueryParam "term"
+  maybe
+    (Snap.writeBS "must specify echo/param in URL")
+    (filterPackages packages . TE.decodeUtf8) term
+
+
+filterPackages :: [Package] -> Text -> Snap.Snap ()
+filterPackages packages term =
+  Snap.writeLBS $ encode $
+  filter (\(Package n v) -> flip (>) 1 . length $ Text.splitOn term n) packages
