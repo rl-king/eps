@@ -4,10 +4,14 @@ module Main ( main) where
 
 import Control.Exception
 import Data.Aeson as Aeson
+import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as BS
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
-
+import Control.Applicative
+import qualified Snap.Core as Snap
+import qualified Snap.Util.FileServe as FileServe
+import qualified Snap.Http.Server as Server
 
 -- PACKAGE
 
@@ -53,10 +57,11 @@ instance Aeson.ToJSON Docs where
 main :: IO ()
 main = do
   packageList <- catch readCache refreshCache
-  docs <- sequence $ fmap getPackageDocs (take 4 packageList)
-  BS.writeFile ("./cache/docs.json") (encode docs)
+  -- docs <- sequence $ fmap getPackageDocs (take 4 packageList)
+  -- BS.writeFile ("./cache/docs.json") (encode docs)
   print packageList
-  print docs
+  -- print docs
+  server packageList
 
 
 readCache :: IO [Package]
@@ -97,7 +102,7 @@ toDocsUrl (Package pName pVersions) =
 
 
 
--- HTTP
+-- REQUEST
 
 
 request :: String -> IO (Http.Response BS.ByteString)
@@ -105,3 +110,27 @@ request path = do
   m <- Http.newManager TLS.tlsManagerSettings
   r <- Http.parseRequest path
   Http.httpLbs r m
+
+
+
+-- SERVER
+
+
+server :: [Package] -> IO ()
+server msg =
+  Server.quickHttpServe $ site msg
+
+
+site :: [Package] -> Snap.Snap ()
+site packages =
+  Snap.ifTop (Snap.writeLBS $ (encode packages)) <|>
+  Snap.route [ ("foo", Snap.writeBS "bar")
+             , ("echo/:echoparam", echoHandler)
+             ] <|>
+  Snap.dir "static" (FileServe.serveDirectory ".")
+
+
+echoHandler :: Snap.Snap ()
+echoHandler = do
+  param <- Snap.getParam "echoparam"
+  maybe (Snap.writeBS "must specify echo/param in URL") Snap.writeBS param
