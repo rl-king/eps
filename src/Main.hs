@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, NamedFieldPuns #-}
 
 module Main ( main) where
 
@@ -8,16 +8,27 @@ import Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.List as List
+import qualified Data.SearchEngine as Search
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text.IO as Text
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
 import qualified Snap.Util.FileServe as FileServe
 import qualified Snap.Http.Server as Server
+import Data.Ix (Ix)
 import Data.Text (Text)
+import Data.Set (Set)
 
+import Control.Monad
+import Control.Exception
+import System.IO
+-- import System.Directory
+import System.Exit
 -- PACKAGE
+
 
 data Package = Package
   { packageName :: Text
@@ -64,7 +75,28 @@ main = do
   -- docs <- sequence $ fmap getPackageDocs (take 4 packageList)
   -- BS.writeFile ("./cache/docs.json") (encode docs)
   -- print docs
-  server packageList
+  let searchEngine = Search.insertDocs packageList initialPkgSearchEngine
+  putStrLn "constructing index..."
+  evaluate searchEngine >> return ()
+  putStrLn $ "search engine invariant: " ++ show (Search.invariant searchEngine)
+  -- server packageList
+
+
+  let loop = do
+        putStr "search term> "
+        hFlush stdout
+        t <- Text.getLine
+        unless (Text.null t) $ do
+          putStrLn "Ranked results:"
+          let rankedResults = Search.queryExplain searchEngine (Text.words t)
+
+          putStr $ unlines
+            [ show (Search.overallScore explanation) ++ ": " ++ show pkgname
+            | (explanation, pkgname) <- take 10 rankedResults ]
+
+          loop
+  return ()
+  loop
 
 
 readCache :: IO [Package]
@@ -142,3 +174,84 @@ filterPackages :: [Package] -> Text -> Snap.Snap ()
 filterPackages packages term =
   Snap.writeLBS $ encode $
   filter (\(Package n v) -> flip (>) 1 . length $ Text.splitOn term n) packages
+
+
+
+-- SEARCH
+
+
+type PkgSearchEngine =
+  Search.SearchEngine Package Text PkgDocField Search.NoFeatures
+
+data PkgDocField = NameField
+                 -- | SynopsisField
+                 -- | DescriptionField
+  deriving (Eq, Ord, Enum, Bounded, Ix, Show)
+
+
+initialPkgSearchEngine :: PkgSearchEngine
+initialPkgSearchEngine =
+    Search.initSearchEngine pkgSearchConfig defaultSearchRankParameters
+
+
+pkgSearchConfig :: Search.SearchConfig Package Text PkgDocField Search.NoFeatures
+pkgSearchConfig =
+    Search.SearchConfig {
+      Search.documentKey           = (\(Package n _) -> n),
+      Search.extractDocumentTerms  = (\(Package n _) _-> Text.splitOn "/" n),
+      Search.transformQueryTerm    = normaliseQueryToken,
+      Search.documentFeatureValue  = const Search.noFeatures
+  }
+  where
+    -- extractTokens :: Package -> PkgDocField -> [Text]
+    -- extractTokens pkg NameField = extractPackageNameTerms (display $ packageName pkg)
+    -- extractTokens pkg SynopsisField = extractSynopsisTerms stopWords (synopsis pkg)
+    -- extractTokens pkg DescriptionField = extractDescriptionTerms stopWords (description pkg)
+
+    normaliseQueryToken :: Text -> PkgDocField -> Text
+    normaliseQueryToken tok =
+      let tokFold = Text.toCaseFold tok
+          -- tokStem = stem English tokFold
+       in \field -> case field of
+                      NameField        -> tokFold
+                      -- SynopsisField    -> tokStem
+                      -- DescriptionField -> tokStem
+
+defaultSearchRankParameters :: Search.SearchRankParameters PkgDocField Search.NoFeatures
+defaultSearchRankParameters =
+    Search.SearchRankParameters {
+      Search.paramK1,
+      Search.paramB,
+      Search.paramFieldWeights,
+      Search.paramFeatureWeights = Search.noFeatures,
+      Search.paramFeatureFunctions = Search.noFeatures,
+      Search.paramResultsetSoftLimit = 200,
+      Search.paramResultsetHardLimit = 400,
+      Search.paramAutosuggestPrefilterLimit  = 500,
+      Search.paramAutosuggestPostfilterLimit = 500
+    }
+  where
+    paramK1 :: Float
+    paramK1 = 1.5
+
+    paramB :: PkgDocField -> Float
+    paramB NameField = 0.9
+    -- paramB SynopsisField    = 0.5
+    -- paramB DescriptionField = 0.5
+
+    paramFieldWeights :: PkgDocField -> Float
+    paramFieldWeights NameField        = 20
+    -- paramFieldWeights SynopsisField    = 5
+    -- paramFieldWeights DescriptionField = 1
+
+
+stopWords :: Set Search.Term
+stopWords =
+  Set.fromList
+  ["haskell","library","simple","using","interface","functions",
+    "implementation","package","support","'s","based","for","a","and","the",
+    "to","of","with","in","an","on","from","that","as","into","by","is",
+    "some","which","or","like","your","other","can","at","over","be","it",
+    "within","their","this","but","are","get","one","all","you","so","only",
+    "now","how","where","when","up","has","been","about","them","then","see",
+    "no","do","than","should","out","off","much","if","i","have","also"]
