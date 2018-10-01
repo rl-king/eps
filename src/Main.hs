@@ -1,29 +1,24 @@
-{-# LANGUAGE OverloadedStrings, NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main ( main) where
 
 import Control.Applicative
 import Control.Exception
 import Control.Monad
+import Debug.Trace
 
 import Data.Aeson as Aeson
-import qualified Data.ByteString.Char8 as Char8
-import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString as BS
 import qualified Data.List as List
-import qualified Data.SearchEngine as Search
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
-import qualified Data.Text.IO as Text
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
-import qualified Snap.Util.FileServe as FileServe
 import qualified Snap.Http.Server as Server
 import qualified System.IO as IO
-import Data.Ix (Ix)
 import Data.Text (Text)
-import Data.Set (Set)
 
 
 
@@ -35,7 +30,7 @@ data Package = Package
   { packageName :: Text
   , summary :: Text
   , versions :: [Text]
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 
 instance Aeson.FromJSON Package where
@@ -75,27 +70,20 @@ main :: IO ()
 main = do
   packageList <- catch readCache refreshCache
   -- docs <- sequence $ fmap getPackageDocs (take 4 packageList)
-  -- BS.writeFile ("./cache/docs.json") (encode docs)
+  -- LBS.writeFile ("./cache/docs.json") (encode docs)
   print packageList
-  let searchEngine = Search.insertDocs packageList initialPkgSearchEngine
-  putStrLn "constructing index..."
-  evaluate searchEngine >> return ()
-  putStrLn $ "search engine invariant: " ++ show (Search.invariant searchEngine)
   -- server packageList
-
 
   let loop = do
         putStr "search term> "
         IO.hFlush IO.stdout
-        t <- Text.getLine
-        unless (Text.null t) $ do
+        t <- BS.getLine
+        unless (BS.null t) $ do
           putStrLn "Ranked results:"
-          let rankedResults = Search.queryExplain searchEngine (Text.words t)
+          let rankedResults = performSearch packageList t
 
           putStr $ unlines
-            [ show (Search.termScores explanation) ++ ": " ++ show pkgname
-            | (explanation, pkgname) <- take 100 rankedResults ]
-
+            [show name | (Package name _ _) <- take 100 rankedResults ]
           loop
   return ()
   loop
@@ -103,7 +91,7 @@ main = do
 
 readCache :: IO [Package]
 readCache = do
-  file <- BS.readFile "./cache/search.json"
+  file <- LBS.readFile "./cache/search.json"
   case Aeson.decode file :: Maybe [Package] of
     Just xs -> return xs
     Nothing -> return []
@@ -121,7 +109,7 @@ getPackageList :: IO (Maybe [Package])
 getPackageList = do
   response <- request "https://package.elm-lang.org/search.json"
   let packages = Aeson.decode (Http.responseBody response) :: Maybe [Package]
-  BS.writeFile "./cache/search.json" (encode packages)
+  LBS.writeFile "./cache/search.json" (encode packages)
   return packages
 
 
@@ -142,7 +130,7 @@ toDocsUrl (Package pName _ pVersions) =
 -- REQUEST
 
 
-request :: String -> IO (Http.Response BS.ByteString)
+request :: String -> IO (Http.Response LBS.ByteString)
 request path = do
   m <- Http.newManager TLS.tlsManagerSettings
   r <- Http.parseRequest path
@@ -182,77 +170,18 @@ filterPackages packages term =
 -- SEARCH
 
 
-type PkgSearchEngine =
-  Search.SearchEngine Package Text PkgDocField Search.NoFeatures
+performSearch :: [Package] -> BS.ByteString -> [Package]
+performSearch packages term =
+  let
+    inTitle =
+      filter (\(Package n _ _) -> byteStringContains term (TE.encodeUtf8 n)) packages
 
-data PkgDocField
-  = NameField
-  | SummaryField
-  deriving (Eq, Ord, Enum, Bounded, Ix, Show)
-
-
-initialPkgSearchEngine :: PkgSearchEngine
-initialPkgSearchEngine =
-    Search.initSearchEngine pkgSearchConfig defaultSearchRankParameters
+    inSummary =
+      filter (\(Package _ s _) -> byteStringContains term (TE.encodeUtf8 s)) packages
+  in
+    List.nub $ inTitle ++ inSummary
 
 
-pkgSearchConfig :: Search.SearchConfig Package Text PkgDocField Search.NoFeatures
-pkgSearchConfig =
-  Search.SearchConfig
-  { Search.documentKey = \(Package n _ _) -> n
-  , Search.extractDocumentTerms = extractTokens
-  , Search.transformQueryTerm = normaliseQueryToken
-  , Search.documentFeatureValue = const Search.noFeatures
-  }
-  where
-    extractTokens :: Package -> PkgDocField -> [Text]
-    extractTokens (Package n _ _) NameField =
-      Text.split (\c -> c == '/' || c == '-') $ Text.toLower n
-    extractTokens (Package _ s _) SummaryField = Text.words s
-
-    normaliseQueryToken :: Text -> PkgDocField -> Text
-    normaliseQueryToken tok =
-      let tokFold = Text.toCaseFold tok
-          -- tokStem = stem English tokFold
-      in \field ->
-        case field of
-          NameField -> tokFold
-          SummaryField -> tokFold
-
-
-defaultSearchRankParameters :: Search.SearchRankParameters PkgDocField Search.NoFeatures
-defaultSearchRankParameters =
-  Search.SearchRankParameters
-  { Search.paramK1 = paramK1
-  , Search.paramB = paramB
-  , Search.paramFieldWeights = paramFieldWeights
-  , Search.paramFeatureWeights = Search.noFeatures
-  , Search.paramFeatureFunctions = Search.noFeatures
-  , Search.paramResultsetSoftLimit = 200
-  , Search.paramResultsetHardLimit = 400
-  , Search.paramAutosuggestPrefilterLimit  = 500
-  , Search.paramAutosuggestPostfilterLimit = 500
-  }
-  where
-    paramK1 :: Float
-    paramK1 = 1.5
-
-    paramB :: PkgDocField -> Float
-    paramB NameField = 0.9
-    paramB SummaryField = 0.5
-
-    paramFieldWeights :: PkgDocField -> Float
-    paramFieldWeights NameField = 10
-    paramFieldWeights SummaryField = 5
-
-
-stopWords :: Set Search.Term
-stopWords =
-  Set.fromList
-  ["haskell","library","simple","using","interface","functions",
-    "implementation","package","support","'s","based","for","a","and","the",
-    "to","of","with","in","an","on","from","that","as","into","by","is",
-    "some","which","or","like","your","other","can","at","over","be","it",
-    "within","their","this","but","are","get","one","all","you","so","only",
-    "now","how","where","when","up","has","been","about","them","then","see",
-    "no","do","than","should","out","off","much","if","i","have","also"]
+byteStringContains :: BS.ByteString -> BS.ByteString -> Bool
+byteStringContains term bs =
+  not . BS.null . snd $ BS.breakSubstring term bs
