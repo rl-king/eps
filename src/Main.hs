@@ -1,13 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main ( main) where
+module Main (main) where
 
 import Control.Applicative
 import Control.Exception
-import Control.Monad
 import Debug.Trace
+import Control.Monad (liftM2, unless)
 
-import Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 import qualified Data.List as List
@@ -19,6 +18,7 @@ import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
 import qualified Snap.Http.Server as Server
 import qualified System.IO as IO
+import Data.Aeson as Aeson
 import Data.Text (Text)
 
 
@@ -84,7 +84,7 @@ main = do
           let rankedResults = performSearch packageList t
 
           putStr $ unlines
-            [show name | (Package name _ _) <- take 100 rankedResults ]
+            [show name | (Package name _ _) <- rankedResults ]
           loop
   return ()
   loop
@@ -181,21 +181,31 @@ performSearch packages term =
     asMap =
       Map.fromList $ List.map (\p@(Package n _ _) -> (n, p)) packages
 
-    rank id check acc =
+    rank x check weight =
       if byteStringContains term (TE.encodeUtf8 check) then
-        (1, id) : acc
+        (weight, x)
       else
-        (0, id) : acc
+        (0, x)
 
     inTitle =
-      foldl (\acc (Package id _ _) -> rank id id acc) [] packages
+      List.map (\(Package x _ _) -> rank x x 1) packages
 
     inSummary =
-      foldl (\acc (Package id summary _) -> rank id summary acc) [] packages
+      List.map (\(Package x s _) -> rank x s 0.5) packages
+
+    merge (r1, a) (r2, _) =
+      (r1 + r2, a)
+
+    get acc (_, i) =
+      case Map.lookup i asMap of
+        Just x -> x : acc
+        Nothing -> acc
   in
-    List.nub $ List.filter ((/=) Nothing) $
-    List.foldr (\a (_, id) -> Map.lookup id asMap : a) $
-    List.sortOn fst (inTitle ++ inSummary)
+    List.foldl get [] $
+    List.take 10 $
+    List.sortOn fst $
+    List.filter ((/=) 0 . fst) $
+    zipWith merge inTitle inSummary
 
 
 byteStringContains :: BS.ByteString -> BS.ByteString -> Bool
