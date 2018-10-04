@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 import qualified Data.List as List
 import qualified Data.Text as Text
+import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as TE
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
@@ -123,7 +124,11 @@ getPackageDocs package = do
 
 toDocsUrl :: Package -> String
 toDocsUrl (Package pName _ pVersions) =
-  "https://package.elm-lang.org/packages/" ++ Text.unpack pName ++ "/" ++ (Text.unpack . head) pVersions ++ "/docs.json"
+  "https://package.elm-lang.org/packages/"
+  ++ Text.unpack pName
+  ++ "/"
+  ++ (Text.unpack . head . reverse) pVersions
+  ++ "/docs.json"
 
 
 
@@ -173,13 +178,24 @@ filterPackages packages term =
 performSearch :: [Package] -> BS.ByteString -> [Package]
 performSearch packages term =
   let
+    asMap =
+      Map.fromList $ List.map (\p@(Package n _ _) -> (n, p)) packages
+
+    rank id check acc =
+      if byteStringContains term (TE.encodeUtf8 check) then
+        (1, id) : acc
+      else
+        (0, id) : acc
+
     inTitle =
-      filter (\(Package n _ _) -> byteStringContains term (TE.encodeUtf8 n)) packages
+      foldl (\acc (Package id _ _) -> rank id id acc) [] packages
 
     inSummary =
-      filter (\(Package _ s _) -> byteStringContains term (TE.encodeUtf8 s)) packages
+      foldl (\acc (Package id summary _) -> rank id summary acc) [] packages
   in
-    List.nub $ inTitle ++ inSummary
+    List.nub $ List.filter ((/=) Nothing) $
+    List.foldr (\a (_, id) -> Map.lookup id asMap : a) $
+    List.sortOn fst (inTitle ++ inSummary)
 
 
 byteStringContains :: BS.ByteString -> BS.ByteString -> Bool
