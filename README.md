@@ -1,7 +1,7 @@
 # eps
 
 ## Getting started
-Most recent work is on `dev` branch.
+Most recent work is on `dev` branch
 
 ```
 make -- build
