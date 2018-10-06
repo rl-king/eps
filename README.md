@@ -1,9 +1,10 @@
 # eps
 
 ## Getting started
-Most recent work is on `dev` branch
+Most recent work is on `dev` branch.
 
 ```
-stack build
-stack exec eps
+make -- build
+make watch -- build on save
+make run -- exec eps
 ```
