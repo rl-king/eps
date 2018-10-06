@@ -4,8 +4,7 @@ module Main (main) where
 
 import Control.Applicative
 import Control.Exception
-import Debug.Trace
-import Control.Monad (liftM2, unless)
+import Control.Monad (unless)
 
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
@@ -51,6 +50,7 @@ instance Aeson.ToJSON Package where
     toEncoding (Package x y z d) =
       pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
 
+
 -- DOCS
 
 
@@ -78,10 +78,12 @@ main :: IO ()
 main = do
   packageList <- catch readPackageList (ignoreException fetchPackagesList)
   LBS.writeFile "./cache/search.json" (encode packageList)
-  packageListWithDocs <- mapM getPackageDocs (take 1 packageList)
+  packageListWithDocs <- catch
+    readPackageDocs
+    (ignoreException $ mapM getPackageDocs (take 10 packageList))
   LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
   print packageListWithDocs
-  -- server packageList
+  server packageListWithDocs
 
   let loop = do
         putStr "search term> "
@@ -118,6 +120,14 @@ fetchPackagesList = do
 
 
 -- DOCS IO
+
+
+readPackageDocs :: IO [Package]
+readPackageDocs = do
+  file <- LBS.readFile "./cache/all.json"
+  case Aeson.decode file :: Maybe [Package] of
+    Just xs -> return xs
+    Nothing -> return []
 
 
 getPackageDocs :: Package -> IO Package
@@ -167,17 +177,12 @@ site packages =
 
 
 searchHandler :: [Package] -> Snap.Snap ()
-searchHandler packages= do
+searchHandler packages = do
   term <- Snap.getQueryParam "term"
-  maybe
-    (Snap.writeBS "must specify echo/param in URL")
-    (filterPackages packages . TE.decodeUtf8) term
+  case term of
+    Nothing -> (Snap.writeBS "must specify echo/param in URL")
+    Just x -> (Snap.writeLBS $ encode . List.map packageName $ performSearch packages x)
 
-
-filterPackages :: [Package] -> Text -> Snap.Snap ()
-filterPackages packages term =
-  Snap.writeLBS $ encode $
-  filter (\(Package n _ _ _) -> flip (>) 1 . length $ Text.splitOn term n) packages
 
 
 
