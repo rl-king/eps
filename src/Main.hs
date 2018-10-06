@@ -23,7 +23,6 @@ import Data.Text (Text)
 
 
 
-
 -- PACKAGE
 
 
@@ -31,19 +30,26 @@ data Package = Package
   { packageName :: Text
   , summary :: Text
   , versions :: [Text]
+  , docs :: [Docs]
   } deriving (Show, Eq)
 
 
 instance Aeson.FromJSON Package where
   parseJSON =
-    Aeson.withObject "Package" $ \v ->
-      Package <$> v .: "name" <*> v .: "summary" <*> v .: "versions"
+    Aeson.withObject "Package" $
+    \v ->
+      Package
+      <$> v .: "name"
+      <*> v .: "summary"
+      <*> v .: "versions"
+      <*> v .:? "docs" .!= [] -- Fallback to [] as this is not in search.json
 
 
 instance Aeson.ToJSON Package where
-    toJSON (Package x y z) = object ["name" .= x, "summary" .= y, "versions" .= z]
-    toEncoding (Package x y z) = pairs ("name" .= x <> "summary" .= y <> "versions" .= z)
-
+    toJSON (Package x y z d) =
+      object ["name" .= x, "summary" .= y, "versions" .= z, "docs" .= d]
+    toEncoding (Package x y z d) =
+      pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
 
 -- DOCS
 
@@ -51,7 +57,7 @@ instance Aeson.ToJSON Package where
 data Docs = Docs
   { moduleName :: Text
   , comment :: Text
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 
 instance Aeson.FromJSON Docs where
@@ -67,12 +73,14 @@ instance Aeson.ToJSON Docs where
 
 -- MAIN
 
+
 main :: IO ()
 main = do
-  packageList <- catch readCache refreshCache
-  -- docs <- sequence $ fmap getPackageDocs (take 4 packageList)
-  -- LBS.writeFile ("./cache/docs.json") (encode docs)
-  print packageList
+  packageList <- catch readPackageList (ignoreException fetchPackagesList)
+  LBS.writeFile "./cache/search.json" (encode packageList)
+  packageListWithDocs <- mapM getPackageDocs (take 1 packageList)
+  LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
+  print packageListWithDocs
   -- server packageList
 
   let loop = do
@@ -84,52 +92,49 @@ main = do
           let rankedResults = performSearch packageList t
 
           putStr $ unlines
-            [show name | (Package name _ _) <- rankedResults ]
+            [show name | (Package name _ _ _) <- rankedResults ]
           loop
   return ()
   loop
 
 
-readCache :: IO [Package]
-readCache = do
+-- PACKAGESLIST IO
+
+
+readPackageList :: IO [Package]
+readPackageList = do
   file <- LBS.readFile "./cache/search.json"
   case Aeson.decode file :: Maybe [Package] of
     Just xs -> return xs
     Nothing -> return []
 
 
-refreshCache :: IOException -> IO [Package]
-refreshCache _ = do
-  packages <- getPackageList
-  case packages of
-    Just xs -> return xs
-    Nothing -> return []
-
-
-getPackageList :: IO (Maybe [Package])
-getPackageList = do
+fetchPackagesList :: IO [Package]
+fetchPackagesList = do
   response <- request "https://package.elm-lang.org/search.json"
-  let packages = Aeson.decode (Http.responseBody response) :: Maybe [Package]
-  LBS.writeFile "./cache/search.json" (encode packages)
-  return packages
-
-
-getPackageDocs :: Package -> IO [Docs]
-getPackageDocs package = do
-  response <- request (toDocsUrl package)
-  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+  case Aeson.decode (Http.responseBody response) :: Maybe [Package] of
     Just xs -> return xs
     Nothing -> return []
 
 
-toDocsUrl :: Package -> String
-toDocsUrl (Package pName _ pVersions) =
+-- DOCS IO
+
+
+getPackageDocs :: Package -> IO Package
+getPackageDocs package = do
+  response <- request (toLatestVersionDocUrl package)
+  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+    Just xs -> return (package {docs = xs})
+    Nothing -> return package
+
+
+toLatestVersionDocUrl :: Package -> String
+toLatestVersionDocUrl (Package pName _ pVersions _) =
   "https://package.elm-lang.org/packages/"
   ++ Text.unpack pName
   ++ "/"
   ++ (Text.unpack . head . reverse) pVersions
   ++ "/docs.json"
-
 
 
 -- REQUEST
@@ -141,6 +146,10 @@ request path = do
   r <- Http.parseRequest path
   Http.httpLbs r m
 
+
+ignoreException :: a -> IOException -> a
+ignoreException =
+  const
 
 
 -- SERVER
@@ -168,7 +177,7 @@ searchHandler packages= do
 filterPackages :: [Package] -> Text -> Snap.Snap ()
 filterPackages packages term =
   Snap.writeLBS $ encode $
-  filter (\(Package n _ _) -> flip (>) 1 . length $ Text.splitOn term n) packages
+  filter (\(Package n _ _ _) -> flip (>) 1 . length $ Text.splitOn term n) packages
 
 
 
@@ -179,7 +188,7 @@ performSearch :: [Package] -> BS.ByteString -> [Package]
 performSearch packages term =
   let
     asMap =
-      Map.fromList $ List.map (\p@(Package n _ _) -> (n, p)) packages
+      Map.fromList $ List.map (\p@(Package n _ _ _) -> (n, p)) packages
 
     rank x check weight =
       if byteStringContains term (TE.encodeUtf8 check) then
@@ -188,10 +197,10 @@ performSearch packages term =
         (0, x)
 
     inTitle =
-      List.map (\(Package x _ _) -> rank x x 1) packages
+      List.map (\(Package x _ _ _) -> rank x x 1) packages
 
     inSummary =
-      List.map (\(Package x s _) -> rank x s 0.5) packages
+      List.map (\(Package x s _ _) -> rank x s 0.5) packages
 
     merge (r1, a) (r2, _) =
       (r1 + r2, a)
