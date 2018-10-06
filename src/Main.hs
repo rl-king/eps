@@ -1,40 +1,55 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main ( main) where
+module Main (main) where
 
 import Control.Applicative
 import Control.Exception
-import Data.Aeson as Aeson
-import qualified Data.ByteString.Char8 as Char8
-import qualified Data.ByteString.Lazy as BS
+import Debug.Trace
+import Control.Monad (liftM2, unless)
+
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString as BS
 import qualified Data.List as List
 import qualified Data.Text as Text
+import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as TE
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
-import qualified Snap.Util.FileServe as FileServe
 import qualified Snap.Http.Server as Server
+import qualified System.IO as IO
+import Data.Aeson as Aeson
 import Data.Text (Text)
+
+
 
 -- PACKAGE
 
+
 data Package = Package
   { packageName :: Text
+  , summary :: Text
   , versions :: [Text]
-  } deriving (Show)
+  , docs :: [Docs]
+  } deriving (Show, Eq)
 
 
 instance Aeson.FromJSON Package where
   parseJSON =
-    Aeson.withObject "Package" $ \v ->
-      Package <$> v .: "name" <*> v .: "versions"
+    Aeson.withObject "Package" $
+    \v ->
+      Package
+      <$> v .: "name"
+      <*> v .: "summary"
+      <*> v .: "versions"
+      <*> v .:? "docs" .!= [] -- Fallback to [] as this is not in search.json
 
 
 instance Aeson.ToJSON Package where
-    toJSON (Package x y) = object ["name" .= x, "versions" .= y]
-    toEncoding (Package x y) = pairs ("name" .= x <> "versions" .= y)
-
+    toJSON (Package x y z d) =
+      object ["name" .= x, "summary" .= y, "versions" .= z, "docs" .= d]
+    toEncoding (Package x y z d) =
+      pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
 
 -- DOCS
 
@@ -42,7 +57,7 @@ instance Aeson.ToJSON Package where
 data Docs = Docs
   { moduleName :: Text
   , comment :: Text
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 
 instance Aeson.FromJSON Docs where
@@ -58,62 +73,83 @@ instance Aeson.ToJSON Docs where
 
 -- MAIN
 
+
 main :: IO ()
 main = do
-  packageList <- catch readCache refreshCache
-  -- docs <- sequence $ fmap getPackageDocs (take 4 packageList)
-  -- BS.writeFile ("./cache/docs.json") (encode docs)
-  -- print docs
-  server packageList
+  packageList <- catch readPackageList (ignoreException fetchPackagesList)
+  LBS.writeFile "./cache/search.json" (encode packageList)
+  packageListWithDocs <- mapM getPackageDocs (take 1 packageList)
+  LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
+  print packageListWithDocs
+  -- server packageList
+
+  let loop = do
+        putStr "search term> "
+        IO.hFlush IO.stdout
+        t <- BS.getLine
+        unless (BS.null t) $ do
+          putStrLn "Ranked results:"
+          let rankedResults = performSearch packageList t
+
+          putStr $ unlines
+            [show name | (Package name _ _ _) <- rankedResults ]
+          loop
+  return ()
+  loop
 
 
-readCache :: IO [Package]
-readCache = do
-  file <- BS.readFile "./cache/search.json"
+-- PACKAGESLIST IO
+
+
+readPackageList :: IO [Package]
+readPackageList = do
+  file <- LBS.readFile "./cache/search.json"
   case Aeson.decode file :: Maybe [Package] of
     Just xs -> return xs
     Nothing -> return []
 
 
-refreshCache :: IOException -> IO [Package]
-refreshCache _ = do
-  packages <- getPackageList
-  case packages of
-    Just xs -> return xs
-    Nothing -> return []
-
-
-getPackageList :: IO (Maybe [Package])
-getPackageList = do
+fetchPackagesList :: IO [Package]
+fetchPackagesList = do
   response <- request "https://package.elm-lang.org/search.json"
-  let packages = Aeson.decode (Http.responseBody response) :: Maybe [Package]
-  BS.writeFile "./cache/search.json" (encode packages)
-  return packages
-
-
-getPackageDocs :: Package -> IO [Docs]
-getPackageDocs package = do
-  response <- request (toDocsUrl package)
-  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+  case Aeson.decode (Http.responseBody response) :: Maybe [Package] of
     Just xs -> return xs
     Nothing -> return []
 
 
-toDocsUrl :: Package -> String
-toDocsUrl (Package pName pVersions) =
-  "https://package.elm-lang.org/packages/" ++ Text.unpack pName ++ "/" ++ (Text.unpack . head) pVersions ++ "/docs.json"
+-- DOCS IO
 
+
+getPackageDocs :: Package -> IO Package
+getPackageDocs package = do
+  response <- request (toLatestVersionDocUrl package)
+  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+    Just xs -> return (package {docs = xs})
+    Nothing -> return package
+
+
+toLatestVersionDocUrl :: Package -> String
+toLatestVersionDocUrl (Package pName _ pVersions _) =
+  "https://package.elm-lang.org/packages/"
+  ++ Text.unpack pName
+  ++ "/"
+  ++ (Text.unpack . head . reverse) pVersions
+  ++ "/docs.json"
 
 
 -- REQUEST
 
 
-request :: String -> IO (Http.Response BS.ByteString)
+request :: String -> IO (Http.Response LBS.ByteString)
 request path = do
   m <- Http.newManager TLS.tlsManagerSettings
   r <- Http.parseRequest path
   Http.httpLbs r m
 
+
+ignoreException :: a -> IOException -> a
+ignoreException =
+  const
 
 
 -- SERVER
@@ -141,4 +177,46 @@ searchHandler packages= do
 filterPackages :: [Package] -> Text -> Snap.Snap ()
 filterPackages packages term =
   Snap.writeLBS $ encode $
-  filter (\(Package n v) -> flip (>) 1 . length $ Text.splitOn term n) packages
+  filter (\(Package n _ _ _) -> flip (>) 1 . length $ Text.splitOn term n) packages
+
+
+
+-- SEARCH
+
+
+performSearch :: [Package] -> BS.ByteString -> [Package]
+performSearch packages term =
+  let
+    asMap =
+      Map.fromList $ List.map (\p@(Package n _ _ _) -> (n, p)) packages
+
+    rank x check weight =
+      if byteStringContains term (TE.encodeUtf8 check) then
+        (weight, x)
+      else
+        (0, x)
+
+    inTitle =
+      List.map (\(Package x _ _ _) -> rank x x 1) packages
+
+    inSummary =
+      List.map (\(Package x s _ _) -> rank x s 0.5) packages
+
+    merge (r1, a) (r2, _) =
+      (r1 + r2, a)
+
+    get acc (_, i) =
+      case Map.lookup i asMap of
+        Just x -> x : acc
+        Nothing -> acc
+  in
+    List.foldl get [] $
+    List.take 10 $
+    List.sortOn fst $
+    List.filter ((/=) 0 . fst) $
+    zipWith merge inTitle inSummary
+
+
+byteStringContains :: BS.ByteString -> BS.ByteString -> Bool
+byteStringContains term bs =
+  not . BS.null . snd $ BS.breakSubstring term bs

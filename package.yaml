@@ -18,6 +18,8 @@ dependencies:
   - base >= 4.7 && < 5
   - aeson
   - bytestring
+  - containers
+  - full-text-search
   - http-client
   - http-client-tls
   - snap-core
