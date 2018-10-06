@@ -29,7 +29,7 @@ data Package = Package
   { packageName :: Text
   , summary :: Text
   , versions :: [Text]
-  , docs :: [Docs]
+  , docs :: [Module]
   } deriving (Show, Eq)
 
 
@@ -51,24 +51,80 @@ instance Aeson.ToJSON Package where
       pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
 
 
--- DOCS
+-- MODULE
 
 
-data Docs = Docs
-  { moduleName :: Text
+data Module = Module
+  { name :: Text
   , comment :: Text
+  , customTypes :: [CustomType]
+  -- , aliases :: [Alias]
+  -- , values :: [Value]
+  -- , binops :: [Binop]
   } deriving (Show, Eq)
 
 
-instance Aeson.FromJSON Docs where
+instance Aeson.FromJSON Module where
   parseJSON =
-    Aeson.withObject "Docs" $ \v ->
-      Docs <$> v .: "name" <*> v .: "comment"
+    Aeson.withObject "Module" $
+    \v ->
+      Module
+      <$> v .: "name"
+      <*> v .: "comment"
+      <*> v .: "unions"
 
 
-instance Aeson.ToJSON Docs where
-    toJSON (Docs x y) = object ["name" .= x, "comment" .= y]
-    toEncoding (Docs x y) = pairs ("name" .= x <> "comment" .= y)
+instance Aeson.ToJSON Module where
+    toJSON (Module x y z) =
+      object ["name" .= x, "comment" .= y, "unions" .= z]
+    toEncoding (Module x y z) =
+      pairs ("name" .= x <> "comment" .= y <> "unions" .= z)
+
+
+type Name = Text
+type Comment = Text
+type Arguments = [Text]
+type Type = Text
+
+
+data TypeAlias =
+  TypeAlias Name Comment Arguments Type
+
+
+data CustomType =
+  CustomType Name Comment Arguments [(Text, [Type])]
+  deriving (Show, Eq)
+
+instance Aeson.FromJSON CustomType where
+  parseJSON =
+    Aeson.withObject "CustomType" $
+    \v ->
+      CustomType
+      <$> v .: "name"
+      <*> v .: "comment"
+      <*> v .: "args"
+      <*> v .: "cases"
+
+instance Aeson.ToJSON CustomType where
+    toJSON (CustomType a b c d) =
+      object ["name" .= a, "comment" .= b, "args" .= c, "cases" .= d]
+    toEncoding (CustomType a b c d) =
+      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "cases" .= d)
+
+data Value =
+  Value Comment Type
+
+
+data Binop =
+  Binop Comment Type
+
+
+-- data Type
+--     = Var Text
+--     | Lambda Type Type
+--     | Tuple [Type]
+--     | Type Text [Type]
+--     | Record [(Text, Type)] (Maybe Text)
 
 
 -- MAIN
@@ -80,7 +136,7 @@ main = do
   LBS.writeFile "./cache/search.json" (encode packageList)
   packageListWithDocs <- catch
     readPackageDocs
-    (ignoreException $ mapM getPackageDocs (take 10 packageList))
+    (ignoreException $ mapM getPackageDocs (take 1 packageList))
   LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
   print packageListWithDocs
   server packageListWithDocs
@@ -133,7 +189,7 @@ readPackageDocs = do
 getPackageDocs :: Package -> IO Package
 getPackageDocs package = do
   response <- request (toLatestVersionDocUrl package)
-  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+  case Aeson.decode (Http.responseBody response) :: Maybe [Module] of
     Just xs -> return (package {docs = xs})
     Nothing -> return package
 
@@ -182,7 +238,6 @@ searchHandler packages = do
   case term of
     Nothing -> (Snap.writeBS "must specify echo/param in URL")
     Just x -> (Snap.writeLBS $ encode . List.map packageName $ performSearch packages x)
-
 
 
 
