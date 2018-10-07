@@ -2,10 +2,8 @@
 
 module Main (main) where
 
-
 import Control.Applicative
 import Control.Exception
-import Control.Monad (unless)
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 import qualified Data.List as List
@@ -17,9 +15,7 @@ import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
 import qualified Snap.Http.Server as Server
 import qualified Snap.Util.FileServe as FileServe
-import qualified System.IO as IO
 import Data.Aeson as Aeson
-import Data.Text (Text)
 
 import Data.Package
 
@@ -30,28 +26,17 @@ import Data.Package
 
 main :: IO ()
 main = do
+  -- Load search.json
   packageList <- catch readPackageList (ignoreException fetchPackagesList)
   LBS.writeFile "./cache/search.json" (encode packageList)
-  packageListWithDocs <- catch
-    readPackageDocs
+
+  -- Load all.json
+  packageListWithDocs <- catch readPackageDocs
     (ignoreException $ mapM getPackageDocs (take 20 packageList))
   LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
-  print packageListWithDocs
+
+  -- Serve "/" "/search" "/search?term="
   server packageListWithDocs
-
-  let loop = do
-        putStr "search term> "
-        IO.hFlush IO.stdout
-        t <- BS.getLine
-        unless (BS.null t) $ do
-          putStrLn "Ranked results:"
-          let rankedResults = performSearch packageList t
-
-          putStr $ unlines
-            [show name | (Package name _ _ _) <- rankedResults ]
-          loop
-  return ()
-  loop
 
 
 -- PACKAGESLIST IO
