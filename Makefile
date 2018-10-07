@@ -1,16 +1,15 @@
 default: all
 
-all: build
-
-build:
-	@stack build
+all: haskell elm
 
 clearcache:
-	@rm cache/all.json
-	@rm cache/search.json
+	@rm ./cache/*
 
 elm:
-	@elm make src/elm/Main.elm --output=elm.js
+	@elm make ./src/elm/Main.elm --output=./index.html
+
+haskell:
+	@stack build
 
 run:
 	@stack exec eps

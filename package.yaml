@@ -19,7 +19,6 @@ dependencies:
   - aeson
   - bytestring
   - containers
-  - full-text-search
   - http-client
   - http-client-tls
   - snap-core
@@ -28,7 +27,7 @@ dependencies:
 
 
 library:
-  source-dirs: src
+  source-dirs: src/haskell
   exposed-modules:
     Main
 
@@ -36,7 +35,12 @@ library:
 executables:
   eps:
     main: Main.hs
-    source-dirs: src
+    source-dirs: src/haskell
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -Wall
     dependencies:
       - eps
 
