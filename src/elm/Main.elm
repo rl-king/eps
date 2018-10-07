@@ -43,7 +43,7 @@ init _ location key =
       , searchResults = []
       , searchTerm = ""
       }
-    , Cmd.none
+    , requestAll
     )
 
 
@@ -72,10 +72,12 @@ update msg model =
             ( model, Browser.Navigation.load href )
 
         OnSearchTermInput searchTerm ->
-            ( { model | searchTerm = searchTerm }, Cmd.none )
+            ( { model | searchTerm = searchTerm }
+            , requestSearchTerm model.searchTerm
+            )
 
         PerformSearch ->
-            ( model, requestSearch model.searchTerm )
+            ( model, requestSearchTerm model.searchTerm )
 
         GotSearchResults (Ok searchResults) ->
             ( { model | searchResults = searchResults }, Cmd.none )
@@ -95,24 +97,32 @@ update msg model =
 view : Model -> Browser.Document Msg
 view model =
     { title = "eps"
-    , body =
-        [ main_ []
-            [ h1 [] [ text "eps" ]
-            , input [ onInput OnSearchTermInput ] []
-            , button [ onClick PerformSearch ] [ text "search" ]
-            , ul [] <|
-                List.map (\x -> li [] [ text x ]) model.searchResults
-            ]
-        ]
+    , body = [ viewBody model ]
     }
 
 
-requestSearch : String -> Cmd Msg
-requestSearch searchTerm =
+viewBody : Model -> Html Msg
+viewBody model =
+    main_ []
+        [ h1 [] [ text "eps" ]
+        , input [ onInput OnSearchTermInput ] []
+        , button [ onClick PerformSearch ] [ text "search" ]
+        , ul [] <|
+            List.map (\x -> li [] [ text x ]) model.searchResults
+        ]
+
+
+
+-- REQUEST
+
+
+requestSearchTerm : String -> Cmd Msg
+requestSearchTerm searchTerm =
     Http.send GotSearchResults <|
         Http.get ("/search?term=" ++ searchTerm) (Decode.list Decode.string)
 
 
-
--- decodeSearchResult =
---     Decode.field "name" Decode.string
+requestAll : Cmd Msg
+requestAll =
+    Http.send GotSearchResults <|
+        Http.get "/search" (Decode.list Decode.string)

@@ -34,7 +34,7 @@ main = do
   LBS.writeFile "./cache/search.json" (encode packageList)
   packageListWithDocs <- catch
     readPackageDocs
-    (ignoreException $ mapM getPackageDocs (take 1 packageList))
+    (ignoreException $ mapM getPackageDocs (take 20 packageList))
   LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
   print packageListWithDocs
   server packageListWithDocs
@@ -128,14 +128,17 @@ server msg =
 site :: [Package] -> Snap.Snap ()
 site packages =
   Snap.ifTop (FileServe.serveFile "./index.html") <|>
-  Snap.route [ ("search", searchHandler packages)]
+  Snap.route
+  [ ("search", searchHandler packages)
+  , ("search", Snap.writeLBS $ encode $ List.map packageName packages)
+  ]
 
 
 searchHandler :: [Package] -> Snap.Snap ()
 searchHandler packages = do
   term <- Snap.getQueryParam "term"
   case term of
-    Nothing -> (Snap.writeBS "must specify echo/param in URL")
+    Nothing -> Snap.pass
     Just x -> (Snap.writeLBS $ encode . List.map packageName $ performSearch packages x)
 
 
