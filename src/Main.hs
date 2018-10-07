@@ -2,10 +2,10 @@
 
 module Main (main) where
 
+
 import Control.Applicative
 import Control.Exception
 import Control.Monad (unless)
-
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 import qualified Data.List as List
@@ -20,111 +20,8 @@ import qualified System.IO as IO
 import Data.Aeson as Aeson
 import Data.Text (Text)
 
+import Data.Package
 
-
--- PACKAGE
-
-
-data Package = Package
-  { packageName :: Text
-  , summary :: Text
-  , versions :: [Text]
-  , docs :: [Module]
-  } deriving (Show, Eq)
-
-
-instance Aeson.FromJSON Package where
-  parseJSON =
-    Aeson.withObject "Package" $
-    \v ->
-      Package
-      <$> v .: "name"
-      <*> v .: "summary"
-      <*> v .: "versions"
-      <*> v .:? "docs" .!= [] -- Fallback to [] as this is not in search.json
-
-
-instance Aeson.ToJSON Package where
-    toJSON (Package x y z d) =
-      object ["name" .= x, "summary" .= y, "versions" .= z, "docs" .= d]
-    toEncoding (Package x y z d) =
-      pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
-
-
--- MODULE
-
-
-data Module = Module
-  { name :: Text
-  , comment :: Text
-  , customTypes :: [CustomType]
-  -- , aliases :: [Alias]
-  -- , values :: [Value]
-  -- , binops :: [Binop]
-  } deriving (Show, Eq)
-
-
-instance Aeson.FromJSON Module where
-  parseJSON =
-    Aeson.withObject "Module" $
-    \v ->
-      Module
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "unions"
-
-
-instance Aeson.ToJSON Module where
-    toJSON (Module x y z) =
-      object ["name" .= x, "comment" .= y, "unions" .= z]
-    toEncoding (Module x y z) =
-      pairs ("name" .= x <> "comment" .= y <> "unions" .= z)
-
-
-type Name = Text
-type Comment = Text
-type Arguments = [Text]
-type Type = Text
-
-
-data TypeAlias =
-  TypeAlias Name Comment Arguments Type
-
-
-data CustomType =
-  CustomType Name Comment Arguments [(Text, [Type])]
-  deriving (Show, Eq)
-
-instance Aeson.FromJSON CustomType where
-  parseJSON =
-    Aeson.withObject "CustomType" $
-    \v ->
-      CustomType
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "args"
-      <*> v .: "cases"
-
-instance Aeson.ToJSON CustomType where
-    toJSON (CustomType a b c d) =
-      object ["name" .= a, "comment" .= b, "args" .= c, "cases" .= d]
-    toEncoding (CustomType a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "cases" .= d)
-
-data Value =
-  Value Comment Type
-
-
-data Binop =
-  Binop Comment Type
-
-
--- data Type
---     = Var Text
---     | Lambda Type Type
---     | Tuple [Type]
---     | Type Text [Type]
---     | Record [(Text, Type)] (Maybe Text)
 
 
 -- MAIN
@@ -210,6 +107,7 @@ request :: String -> IO (Http.Response LBS.ByteString)
 request path = do
   m <- Http.newManager TLS.tlsManagerSettings
   r <- Http.parseRequest path
+  putStrLn $ "fetching: " ++ path
   Http.httpLbs r m
 
 
