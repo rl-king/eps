@@ -4,7 +4,9 @@ import Browser
 import Browser.Navigation
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onInput)
 import Http
+import Json.Decode as Decode
 import Url exposing (Url)
 
 
@@ -29,12 +31,20 @@ main =
 
 
 type alias Model =
-    { key : Browser.Navigation.Key }
+    { key : Browser.Navigation.Key
+    , searchResults : List String
+    , searchTerm : String
+    }
 
 
 init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
-    ( { key = key }, Cmd.none )
+    ( { key = key
+      , searchResults = []
+      , searchTerm = ""
+      }
+    , Cmd.none
+    )
 
 
 
@@ -44,6 +54,9 @@ init _ location key =
 type Msg
     = OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
+    | OnSearchTermInput String
+    | PerformSearch
+    | GotSearchResults (Result Http.Error (List String))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -58,6 +71,22 @@ update msg model =
         OnUrlRequest (Browser.External href) ->
             ( model, Browser.Navigation.load href )
 
+        OnSearchTermInput searchTerm ->
+            ( { model | searchTerm = searchTerm }, Cmd.none )
+
+        PerformSearch ->
+            ( model, requestSearch model.searchTerm )
+
+        GotSearchResults (Ok searchResults) ->
+            ( { model | searchResults = searchResults }, Cmd.none )
+
+        GotSearchResults (Err err) ->
+            let
+                _ =
+                    Debug.log "Error in search results request" err
+            in
+            ( model, Cmd.none )
+
 
 
 -- VIEW
@@ -65,6 +94,25 @@ update msg model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = ""
-    , body = [ main_ [] [ h1 [] [ text "hello world" ] ] ]
+    { title = "eps"
+    , body =
+        [ main_ []
+            [ h1 [] [ text "eps" ]
+            , input [ onInput OnSearchTermInput ] []
+            , button [ onClick PerformSearch ] [ text "search" ]
+            , ul [] <|
+                List.map (\x -> li [] [ text x ]) model.searchResults
+            ]
+        ]
     }
+
+
+requestSearch : String -> Cmd Msg
+requestSearch searchTerm =
+    Http.send GotSearchResults <|
+        Http.get ("/search?term=" ++ searchTerm) (Decode.list Decode.string)
+
+
+
+-- decodeSearchResult =
+--     Decode.field "name" Decode.string
