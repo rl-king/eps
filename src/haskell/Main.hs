@@ -4,9 +4,6 @@ module Main (main) where
 
 import Control.Applicative
 import Control.Exception
-import Debug.Trace
-import Control.Monad (liftM2, unless)
-
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString as BS
 import qualified Data.List as List
@@ -17,58 +14,11 @@ import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
 import qualified Snap.Http.Server as Server
-import qualified System.IO as IO
+import qualified Snap.Util.FileServe as FileServe
 import Data.Aeson as Aeson
-import Data.Text (Text)
 
+import Data.Package
 
-
--- PACKAGE
-
-
-data Package = Package
-  { packageName :: Text
-  , summary :: Text
-  , versions :: [Text]
-  , docs :: [Docs]
-  } deriving (Show, Eq)
-
-
-instance Aeson.FromJSON Package where
-  parseJSON =
-    Aeson.withObject "Package" $
-    \v ->
-      Package
-      <$> v .: "name"
-      <*> v .: "summary"
-      <*> v .: "versions"
-      <*> v .:? "docs" .!= [] -- Fallback to [] as this is not in search.json
-
-
-instance Aeson.ToJSON Package where
-    toJSON (Package x y z d) =
-      object ["name" .= x, "summary" .= y, "versions" .= z, "docs" .= d]
-    toEncoding (Package x y z d) =
-      pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
-
--- DOCS
-
-
-data Docs = Docs
-  { moduleName :: Text
-  , comment :: Text
-  } deriving (Show, Eq)
-
-
-instance Aeson.FromJSON Docs where
-  parseJSON =
-    Aeson.withObject "Docs" $ \v ->
-      Docs <$> v .: "name" <*> v .: "comment"
-
-
-instance Aeson.ToJSON Docs where
-    toJSON (Docs x y) = object ["name" .= x, "comment" .= y]
-    toEncoding (Docs x y) = pairs ("name" .= x <> "comment" .= y)
 
 
 -- MAIN
@@ -76,26 +26,17 @@ instance Aeson.ToJSON Docs where
 
 main :: IO ()
 main = do
+  -- Load search.json
   packageList <- catch readPackageList (ignoreException fetchPackagesList)
   LBS.writeFile "./cache/search.json" (encode packageList)
-  packageListWithDocs <- mapM getPackageDocs (take 1 packageList)
+
+  -- Load all.json
+  packageListWithDocs <- catch readPackageDocs
+    (ignoreException $ mapM getPackageDocs (take 20 packageList))
   LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
-  print packageListWithDocs
-  -- server packageList
 
-  let loop = do
-        putStr "search term> "
-        IO.hFlush IO.stdout
-        t <- BS.getLine
-        unless (BS.null t) $ do
-          putStrLn "Ranked results:"
-          let rankedResults = performSearch packageList t
-
-          putStr $ unlines
-            [show name | (Package name _ _ _) <- rankedResults ]
-          loop
-  return ()
-  loop
+  -- Serve "/" "/search" "/search?term="
+  server packageListWithDocs
 
 
 -- PACKAGESLIST IO
@@ -120,10 +61,18 @@ fetchPackagesList = do
 -- DOCS IO
 
 
+readPackageDocs :: IO [Package]
+readPackageDocs = do
+  file <- LBS.readFile "./cache/all.json"
+  case Aeson.decode file :: Maybe [Package] of
+    Just xs -> return xs
+    Nothing -> return []
+
+
 getPackageDocs :: Package -> IO Package
 getPackageDocs package = do
   response <- request (toLatestVersionDocUrl package)
-  case Aeson.decode (Http.responseBody response) :: Maybe [Docs] of
+  case Aeson.decode (Http.responseBody response) :: Maybe [Module] of
     Just xs -> return (package {docs = xs})
     Nothing -> return package
 
@@ -144,6 +93,7 @@ request :: String -> IO (Http.Response LBS.ByteString)
 request path = do
   m <- Http.newManager TLS.tlsManagerSettings
   r <- Http.parseRequest path
+  putStrLn $ "fetching: " ++ path
   Http.httpLbs r m
 
 
@@ -162,22 +112,19 @@ server msg =
 
 site :: [Package] -> Snap.Snap ()
 site packages =
-  Snap.ifTop (Snap.writeLBS $ (encode packages)) <|>
-  Snap.route [ ("search", searchHandler packages)]
+  Snap.ifTop (FileServe.serveFile "./index.html") <|>
+  Snap.route
+  [ ("search", searchHandler packages)
+  , ("search", Snap.writeLBS $ encode $ List.map packageName packages)
+  ]
 
 
 searchHandler :: [Package] -> Snap.Snap ()
-searchHandler packages= do
+searchHandler packages = do
   term <- Snap.getQueryParam "term"
-  maybe
-    (Snap.writeBS "must specify echo/param in URL")
-    (filterPackages packages . TE.decodeUtf8) term
-
-
-filterPackages :: [Package] -> Text -> Snap.Snap ()
-filterPackages packages term =
-  Snap.writeLBS $ encode $
-  filter (\(Package n _ _ _) -> flip (>) 1 . length $ Text.splitOn term n) packages
+  case term of
+    Nothing -> Snap.pass
+    Just x -> (Snap.writeLBS $ encode . List.map packageName $ performSearch packages x)
 
 
 
