@@ -1,4 +1,4 @@
-default: all
+default: help
 
 all: haskell elm
 
@@ -11,7 +11,15 @@ elm:
 haskell:
 	@stack build
 
-run:
+help:
+	@echo "all -- compile haskell and elm"
+	@echo "clearcache -- remove all files in ./cache"
+	@echo "elm -- compile elm to ./index.html"
+	@echo "haskell -- compile haskell"
+	@echo "server -- start haskell server"
+	@echo "watch -- watch haskell files and compile on change"
+
+server:
 	@stack exec eps
 
 watch:
