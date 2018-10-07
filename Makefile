@@ -9,6 +9,9 @@ clearcache:
 	@rm cache/all.json
 	@rm cache/search.json
 
+elm:
+	@elm make src/elm/Main.elm --output=elm.js
+
 run:
 	@stack exec eps
 
