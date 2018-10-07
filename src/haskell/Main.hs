@@ -16,6 +16,7 @@ import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import qualified Snap.Core as Snap
 import qualified Snap.Http.Server as Server
+import qualified Snap.Util.FileServe as FileServe
 import qualified System.IO as IO
 import Data.Aeson as Aeson
 import Data.Text (Text)
@@ -126,7 +127,7 @@ server msg =
 
 site :: [Package] -> Snap.Snap ()
 site packages =
-  Snap.ifTop (Snap.writeLBS $ (encode packages)) <|>
+  Snap.ifTop (FileServe.serveFile "./index.html") <|>
   Snap.route [ ("search", searchHandler packages)]
 
 
