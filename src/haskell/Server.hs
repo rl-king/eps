@@ -18,8 +18,9 @@ import Data.Package
 
 
 type Api =
+  "search" :> QueryParam "term" String :> Get '[JSON] [Package] :<|>
   "search" :> Get '[JSON] [Package] :<|>
-  "search" :> Capture "term" String :> Get '[JSON] [Package]
+  Raw
 
 
 api :: Proxy Api
@@ -42,8 +43,9 @@ mkApp = return . serve api . server
 
 server :: [Package] -> Server Api
 server packages =
+  searchPackages :<|>
   getPackages packages :<|>
-  getItemById
+  serveDirectoryWebApp "/foo"
 
 
 getPackages :: [Package] -> Handler [Package]
@@ -51,32 +53,7 @@ getPackages packages =
   return packages
 
 
-getItemById :: String -> Handler [Package]
-getItemById = \ case
-  "a" -> return []
+searchPackages :: Maybe String -> Handler [Package]
+searchPackages = \ case
+  Just _ -> return []
   _ -> throwError $ err404 { errBody = "(╯°□°）╯︵ ┻━┻)." }
-
-
--- SERVER
-
-
--- server :: [Package] -> IO ()
--- server msg =
---   Server.quickHttpServe $ site msg
-
-
--- site :: [Package] -> Snap.Snap ()
--- site packages =
---   Snap.ifTop (FileServe.serveFile "./index.html") <|>
---   Snap.route
---   [ ("search", searchHandler packages)
---   , ("search", Snap.writeLBS $ encode $ List.map packageName packages)
---   ]
-
-
--- searchHandler :: [Package] -> Snap.Snap ()
--- searchHandler packages = do
---   term <- Snap.getQueryParam "term"
---   case term of
---     Nothing -> Snap.pass
---     Just x -> (Snap.writeLBS $ encode . List.map packageName $ performSearch packages x)
