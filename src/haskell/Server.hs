@@ -1,14 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeOperators #-}
 
 module Server where
 
 import Control.Monad.Trans.Except
-import Data.Aeson
-import GHC.Generics
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Servant
@@ -54,6 +50,7 @@ getPackages packages =
 
 
 searchPackages :: Maybe String -> Handler [Package]
-searchPackages = \ case
+searchPackages queryParam =
+  case queryParam of
   Just _ -> return []
   _ -> throwError $ err404 { errBody = "(╯°□°）╯︵ ┻━┻)." }
