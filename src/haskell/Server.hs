@@ -4,13 +4,14 @@
 
 module Server where
 
-import Control.Monad.Trans.Except
+import qualified Data.ByteString.Char8 as BS
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Servant
 import System.IO
 
 import Data.Package
+import Search
 
 
 type Api =
@@ -39,7 +40,7 @@ mkApp = return . serve api . server
 
 server :: [Package] -> Server Api
 server packages =
-  searchPackages :<|>
+  searchPackages packages :<|>
   getPackages packages :<|>
   serveDirectoryWebApp "/foo"
 
@@ -49,8 +50,8 @@ getPackages packages =
   return packages
 
 
-searchPackages :: Maybe String -> Handler [Package]
-searchPackages queryParam =
+searchPackages :: [Package] -> Maybe String -> Handler [Package]
+searchPackages packages queryParam =
   case queryParam of
-  Just _ -> return []
-  _ -> throwError $ err404 { errBody = "(╯°□°）╯︵ ┻━┻)." }
+    Just term -> return $ Search.perform (BS.pack term) packages
+    Nothing -> throwError $ err404 { errBody = "(╯°□°）╯︵ ┻━┻)." }
