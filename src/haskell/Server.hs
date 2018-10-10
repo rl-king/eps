@@ -16,7 +16,6 @@ import Search
 
 type Api =
   "search" :> QueryParam "term" String :> Get '[JSON] [Package] :<|>
-  "search" :> Get '[JSON] [Package] :<|>
   Raw
 
 
@@ -41,17 +40,12 @@ mkApp = return . serve api . server
 server :: [Package] -> Server Api
 server packages =
   searchPackages packages :<|>
-  getPackages packages :<|>
-  serveDirectoryWebApp "/foo"
-
-
-getPackages :: [Package] -> Handler [Package]
-getPackages packages =
-  return packages
+  serveDirectoryFileServer "./"
 
 
 searchPackages :: [Package] -> Maybe String -> Handler [Package]
 searchPackages packages queryParam =
   case queryParam of
-    Just term -> return $ Search.perform (BS.pack term) packages
-    Nothing -> throwError $ err404 { errBody = "(╯°□°）╯︵ ┻━┻)." }
+    Just term ->
+      return $ Search.perform (BS.pack term) packages
+    Nothing -> return packages
