@@ -37,7 +37,6 @@ perform term packages =
         Nothing -> acc
   in
     List.foldl get [] $
-    List.take 10 $
     List.sortOn fst $
     List.filter ((/=) 0 . fst) $
     zipWith merge inTitle inSummary

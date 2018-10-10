@@ -119,10 +119,15 @@ viewBody model =
 requestSearchTerm : String -> Cmd Msg
 requestSearchTerm searchTerm =
     Http.send GotSearchResults <|
-        Http.get ("/search?term=" ++ searchTerm) (Decode.list Decode.string)
+        Http.get ("/search?term=" ++ searchTerm) decode
 
 
 requestAll : Cmd Msg
 requestAll =
     Http.send GotSearchResults <|
-        Http.get "/search" (Decode.list Decode.string)
+        Http.get "/search" decode
+
+
+decode : Decode.Decoder (List String)
+decode =
+    Decode.list (Decode.field "name" Decode.string)
