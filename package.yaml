@@ -21,10 +21,12 @@ dependencies:
   - containers
   - http-client
   - http-client-tls
-  - snap-core
-  - snap-server
+  - servant
+  - servant-server
   - text
-
+  - transformers
+  - wai
+  - warp
 
 library:
   source-dirs: src/haskell
