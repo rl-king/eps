@@ -20,7 +20,7 @@ data Package = Package
   { packageName :: Name
   , summary :: Text
   , versions :: [Text]
-  , docs :: [Module]
+  , modules :: [Module]
   } deriving (Show, Eq)
 
 
@@ -29,7 +29,7 @@ data Module = Module
   , comment :: Comment
   , customTypes :: [CustomType]
   , aliases :: [TypeAlias]
-  , values :: [Value]
+  , values :: [Value_]
   , binops :: [Binop]
   } deriving (Show, Eq)
 

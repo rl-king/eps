@@ -73,7 +73,7 @@ update msg model =
 
         OnSearchTermInput searchTerm ->
             ( { model | searchTerm = searchTerm }
-            , requestSearchTerm model.searchTerm
+            , requestSearchTerm searchTerm
             )
 
         PerformSearch ->
@@ -130,4 +130,4 @@ requestAll =
 
 decode : Decode.Decoder (List String)
 decode =
-    Decode.list (Decode.field "name" Decode.string)
+    Decode.list Decode.string

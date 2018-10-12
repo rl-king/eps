@@ -26,6 +26,7 @@ dependencies:
   - text
   - transformers
   - wai
+  - wai-extra
   - warp
 
 library:
