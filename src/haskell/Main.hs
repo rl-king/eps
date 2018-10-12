@@ -25,7 +25,7 @@ main = do
 
   -- Load all.json
   packageListWithDocs <- catch readPackageDocs
-    (ignoreException $ mapM getPackageDocs (take 20 packageList))
+    (ignoreException $ mapM getPackageDocs packageList)
   LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
 
   -- Serve "/" "/search" "/search?term="
@@ -66,7 +66,7 @@ getPackageDocs :: Package -> IO Package
 getPackageDocs package = do
   response <- request (toLatestVersionDocUrl package)
   case Aeson.decode (Http.responseBody response) :: Maybe [Module] of
-    Just xs -> return (package {docs = xs})
+    Just xs -> return (package {modules = xs})
     Nothing -> return package
 
 
