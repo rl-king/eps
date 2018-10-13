@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 module Data.Package where
 
 import Data.Aeson as Aeson

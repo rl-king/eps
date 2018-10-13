@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-
 module Search where
 
 import qualified Data.ByteString as BS
@@ -8,14 +7,17 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
-import Data.Text (Text)
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
-import Data.Package as Package
+import qualified Data.Package as Package
 import qualified Token.TypeSig
+import qualified Search.Result as SR
+import Data.Package (Package)
 
-perform ::  Text -> [Package] -> Token.TypeSig.Tokens -> [Text]
+
+
+perform ::  Text -> [Package] -> Token.TypeSig.Tokens -> [SR.Result]
 perform term packages valueTokens =
   let
     -- asMap =
@@ -56,9 +58,8 @@ perform term packages valueTokens =
       Map.toList $
       List.foldl get Map.empty $
       termAsTokens
-
   in
-    List.map (\((Token.TypeSig.Info x y z a), rank) -> z <> a <> (Text.pack $ show rank)) result
+    List.map fst result
 
 
 byteStringContains :: BS.ByteString -> BS.ByteString -> Bool

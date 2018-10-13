@@ -11,19 +11,11 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
+import qualified Search.Result as SR
 
 
 type Tokens =
-  Map (Text, Int) [Info]
-
-
-data Info =
-  Info
-  { packageName_ :: Text
-  , moduleName_ :: Text
-  , typeName :: Text
-  , typeSignature :: Text
-  } deriving (Show, Eq, Ord)
+  Map (Text, Int) [SR.Result]
 
 
 tokenize :: [Package] -> Tokens
@@ -31,14 +23,14 @@ tokenize =
   Map.fromListWith (++) . concatMap extract
 
 
-extract :: Package -> [((Text, Int), [Info])]
+extract :: Package -> [((Text, Int), [SR.Result])]
 extract (Package{packageName, modules}) =
   let
     toKeyValuePairs acc Module{moduleName, values} =
       List.concatMap (toKeyValuePairsHelper moduleName) values ++ acc
 
     toKeyValuePairsHelper moduleName (Value_ typeName _ type_) =
-      List.map (\x -> (x ,[Info packageName moduleName typeName type_])) $
+      List.map (\x -> (x ,[SR.Result SR.Value packageName moduleName typeName type_])) $
       typeSigToToken type_
   in
     List.foldl toKeyValuePairs [] modules

@@ -32,7 +32,7 @@ main =
 
 type alias Model =
     { key : Browser.Navigation.Key
-    , searchResults : List String
+    , searchResults : List SearchResult
     , searchTerm : String
     }
 
@@ -56,7 +56,7 @@ type Msg
     | OnUrlRequest Browser.UrlRequest
     | OnSearchTermInput String
     | PerformSearch
-    | GotSearchResults (Result Http.Error (List String))
+    | GotSearchResults (Result Http.Error (List SearchResult))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -105,29 +105,100 @@ viewBody : Model -> Html Msg
 viewBody model =
     main_ []
         [ h1 [] [ text "eps" ]
+        , label [] [ text "enter at least 3 chars" ]
         , input [ onInput OnSearchTermInput ] []
         , button [ onClick PerformSearch ] [ text "search" ]
+        , p [] [ text (String.fromInt <| List.length model.searchResults) ]
         , ul [] <|
-            List.map (\x -> li [] [ text x ]) model.searchResults
+            List.map viewResult model.searchResults
+        ]
+
+
+viewResult : SearchResult -> Html Msg
+viewResult result =
+    div []
+        [ header []
+            [ label [] [ text "Value" ]
+            , h2 [] [ text result.packageName ]
+            ]
+        , article [] [ text result.typeSignature ]
         ]
 
 
 
--- REQUEST
+-- DATA
+
+
+type alias SearchResult =
+    { category : Category
+    , packageName : String
+    , moduleName : String
+    , valueName : String
+    , typeSignature : String
+    }
+
+
+type Category
+    = Package
+    | Module
+    | CustomType
+    | TypeAlias
+    | Value
+    | BinOp
+
+
+
+-- HTTP
 
 
 requestSearchTerm : String -> Cmd Msg
 requestSearchTerm searchTerm =
     Http.send GotSearchResults <|
-        Http.get ("/search?term=" ++ searchTerm) decode
+        Http.get ("/search?term=" ++ searchTerm) (Decode.list decodeResult)
 
 
 requestAll : Cmd Msg
 requestAll =
     Http.send GotSearchResults <|
-        Http.get "/search" decode
+        Http.get "/search" (Decode.list decodeResult)
 
 
-decode : Decode.Decoder (List String)
-decode =
-    Decode.list Decode.string
+
+-- DECODE
+
+
+decodeResult : Decode.Decoder SearchResult
+decodeResult =
+    Decode.map5 SearchResult
+        (Decode.field "category" decodeCategory)
+        (Decode.field "packageName" Decode.string)
+        (Decode.field "moduleName" Decode.string)
+        (Decode.field "valueName" Decode.string)
+        (Decode.field "typeSignature" Decode.string)
+
+
+decodeCategory : Decode.Decoder Category
+decodeCategory =
+    Decode.map categoryFromString Decode.string
+
+
+categoryFromString : String -> Category
+categoryFromString s =
+    case s of
+        "Package" ->
+            Package
+
+        "Module" ->
+            Module
+
+        "CustomType" ->
+            CustomType
+
+        "TypeAlias" ->
+            TypeAlias
+
+        "Value" ->
+            Value
+
+        _ ->
+            BinOp

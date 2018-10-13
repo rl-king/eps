@@ -14,12 +14,13 @@ import System.IO
 import Data.Text (Text)
 
 import qualified Token.TypeSig
+import qualified Search.Result as SR
 import Data.Package
 import Search
 
 
 type Api =
-  "search" :> QueryParam "term" String :> Get '[JSON] [Text] :<|>
+  "search" :> QueryParam "term" String :> Get '[JSON] [SR.Result] :<|>
   Raw
 
 
@@ -50,7 +51,7 @@ server packages valueTokens =
   serveDirectoryFileServer "./"
 
 
-searchPackages :: [Package] -> Token.TypeSig.Tokens -> Maybe String -> Handler [Text]
+searchPackages :: [Package] -> Token.TypeSig.Tokens -> Maybe String -> Handler [SR.Result]
 searchPackages packages valueTokens queryParam =
   case queryParam of
     Just term ->
