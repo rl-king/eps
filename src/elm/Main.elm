@@ -2,9 +2,22 @@ module Main exposing (main)
 
 import Browser
 import Browser.Navigation
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Css exposing (..)
+import Css.Breakpoint as Breakpoint
+import Css.Global as Global exposing (global)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes
+    exposing
+        ( attribute
+        , autofocus
+        , css
+        , placeholder
+        , style
+        , type_
+        , value
+        )
+import Html.Styled.Events exposing (onClick, onInput)
+import Html.Styled.Keyed as Keyed
 import Http
 import Json.Decode as Decode
 import Url exposing (Url)
@@ -41,9 +54,9 @@ init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
     ( { key = key
       , searchResults = []
-      , searchTerm = ""
+      , searchTerm = "(a -> b) -> Maybe a -> Maybe b"
       }
-    , requestAll
+    , requestSearchTerm "(a -> b) -> Maybe a -> Maybe b"
     )
 
 
@@ -97,32 +110,185 @@ update msg model =
 view : Model -> Browser.Document Msg
 view model =
     { title = "eps"
-    , body = [ viewBody model ]
+    , body = [ toUnstyled <| viewBody model ]
     }
 
 
 viewBody : Model -> Html Msg
 viewBody model =
-    main_ []
-        [ h1 [] [ text "eps" ]
-        , label [] [ text "enter at least 3 chars" ]
-        , input [ onInput OnSearchTermInput ] []
-        , button [ onClick PerformSearch ] [ text "search" ]
-        , p [] [ text (String.fromInt <| List.length model.searchResults) ]
-        , ul [] <|
-            List.map viewResult model.searchResults
+    main_ [ css styling.main ]
+        [ global globalStyling
+        , viewSidebar model
+        , viewResults model
         ]
+
+
+viewSidebar : Model -> Html Msg
+viewSidebar model =
+    section [ css styling.sidebar ]
+        [ h1 [ css styling.title ] [ text "eps" ]
+        , input
+            [ onInput OnSearchTermInput
+            , css styling.input
+            , autofocus True
+            , value model.searchTerm
+            ]
+            []
+        , button [ onClick PerformSearch, css styling.button ] [ text "search" ]
+        , p []
+            [ text (String.fromInt <| List.length model.searchResults)
+            , text " results"
+            ]
+        ]
+
+
+viewResults : Model -> Html Msg
+viewResults model =
+    ul [ css styling.searchResults ] <|
+        List.map viewResult model.searchResults
 
 
 viewResult : SearchResult -> Html Msg
 viewResult result =
-    div []
-        [ header []
-            [ label [] [ text "Value" ]
-            , h2 [] [ text result.packageName ]
+    div [ css styling.searchResult ]
+        [ header [ css styling.searchResultHeader ]
+            [ span
+                [ css styling.searchResultCategory
+                , style "background-color" (categoryToColor result.category)
+                ]
+                [ text (categoryToString result.category)
+                ]
+            , span [ css styling.searchResultSignature ] [ text result.valueName ]
+            , text " : "
+            , span [ css styling.searchResultSignature ] [ text result.typeSignature ]
             ]
-        , article [] [ text result.typeSignature ]
+        , div [ css styling.searchResultBody ]
+            [ span [ css styling.searchResultPackageName ] [ text result.packageName ]
+            , span [ css styling.searchResultModuleName ] [ text result.moduleName ]
+            ]
         ]
+
+
+
+-- STYLING
+
+
+colors =
+    { lightGrey = hex "fafafa"
+    , grey = hex "eee"
+    , darkGrey = hex "5A6378"
+    , white = hex "fff"
+    }
+
+
+styling =
+    { main =
+        [ Breakpoint.small []
+        ]
+    , title =
+        [ fontWeight (int 500)
+        , fontSize (rem 1)
+        , margin2 (rem 0.25) zero
+        ]
+    , input =
+        [ width (pct 100)
+        , border3 (px 1) solid colors.grey
+        , height (rem 2.5)
+        , margin3 (rem 2) zero (rem 1)
+        , fontSize (rem 1.25)
+        , padding2 zero (rem 0.5)
+        ]
+    , sidebar =
+        [ width (pct 100)
+        , padding2 (rem 2) (rem 1)
+        , backgroundColor colors.lightGrey
+        , Breakpoint.small
+            [ position fixed
+            , top zero
+            , left zero
+            , width (rem 20)
+            , height (pct 100)
+            ]
+        ]
+    , searchResults =
+        [ padding (rem 1)
+        , Breakpoint.small
+            [ marginLeft (rem 20)
+            , width (calc (pct 100) minus (rem 20))
+            ]
+        ]
+    , searchResult =
+        [ backgroundColor colors.lightGrey
+        , marginBottom (rem 1)
+        ]
+    , searchResultHeader =
+        [ padding2 (rem 1) (rem 1)
+        , backgroundColor colors.grey
+        ]
+    , searchResultBody =
+        [ padding2 (rem 0.5) (rem 1)
+        , displayFlex
+        , justifyContent spaceBetween
+        ]
+    , searchResultSignature =
+        [ fontSize (rem 1.25)
+        ]
+    , searchResultPackageName =
+        [ fontWeight (int 500)
+        , fontSize (rem 1.15)
+        ]
+    , searchResultModuleName =
+        [ fontWeight (int 500)
+        , fontSize (rem 1.15)
+        ]
+    , searchResultCategory =
+        [ padding2 (rem 0.15) (rem 0.5)
+        , marginRight (rem 1)
+        ]
+    , button =
+        [ backgroundColor transparent
+        , border zero
+        , fontSize (rem 1.25)
+        , backgroundColor colors.darkGrey
+        , color colors.white
+        , height (rem 2)
+        , padding2 zero (rem 1)
+        , display none
+        ]
+    }
+
+
+globalStyling =
+    [ Global.everything
+        [ boxSizing borderBox ]
+    , Global.html
+        [ margin zero
+        , padding zero
+        ]
+    , Global.body
+        [ margin zero
+        , padding zero
+        , fontSize (pct 87.5)
+        , fontFamilies
+            [ "-apple-system"
+            , "BlinkMacSystemFont"
+            , "Segoe UI"
+            , "Roboto"
+            , "Oxygen"
+            , "Ubuntu"
+            , "Cantarell"
+            , "Fira Sans"
+            , "Droid Sans"
+            , "Helvetica Neue"
+            , "sans-serif"
+            ]
+        ]
+    , Global.ul
+        [ listStyle none
+        , padding zero
+        , margin zero
+        ]
+    ]
 
 
 
@@ -202,3 +368,53 @@ categoryFromString s =
 
         _ ->
             BinOp
+
+
+categoryToString : Category -> String
+categoryToString c =
+    case c of
+        Package ->
+            "Package"
+
+        Module ->
+            "Module"
+
+        CustomType ->
+            "Custom Type"
+
+        TypeAlias ->
+            "Type Alias"
+
+        Value ->
+            "Value"
+
+        BinOp ->
+            "Binary operator"
+
+
+categoryToColor : Category -> String
+categoryToColor c =
+    case c of
+        -- blue
+        Package ->
+            "#3CA5EA"
+
+        -- green
+        Module ->
+            "#43DCC1"
+
+        -- red
+        CustomType ->
+            "#FD3740"
+
+        -- purple
+        TypeAlias ->
+            "#7F63D2"
+
+        --yellow
+        Value ->
+            "#F1D027"
+
+        -- pink
+        BinOp ->
+            "#f9b2e1"
