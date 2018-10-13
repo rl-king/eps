@@ -6,9 +6,11 @@ module Search where
 import qualified Data.ByteString as BS
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
-import Data.Text (Text, words, filter, pack)
+import Data.Text (Text)
 import Data.Map.Strict (Map)
+import Data.Text (Text)
 
 import Data.Package as Package
 import qualified Token.TypeSig
@@ -56,7 +58,7 @@ perform term packages valueTokens =
       termAsTokens
 
   in
-    List.map (\((Token.TypeSig.Info x y z a), rank) -> z <> a <> (Data.Text.pack $ show rank)) result
+    List.map (\((Token.TypeSig.Info x y z a), rank) -> z <> a <> (Text.pack $ show rank)) result
 
 
 byteStringContains :: BS.ByteString -> BS.ByteString -> Bool

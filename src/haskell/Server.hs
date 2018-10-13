@@ -4,14 +4,14 @@
 
 module Server where
 
-import qualified Data.ByteString.Char8 as BS
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as Text
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Gzip
 import Servant
 import System.IO
-import Data.Text (Text, pack)
+import Data.Text (Text)
 
 import qualified Token.TypeSig
 import Data.Package
@@ -54,5 +54,5 @@ searchPackages :: [Package] -> Token.TypeSig.Tokens -> Maybe String -> Handler [
 searchPackages packages valueTokens queryParam =
   case queryParam of
     Just term ->
-      return $ Search.perform (pack term) packages valueTokens
+      return $ Search.perform (Text.pack term) packages valueTokens
     Nothing -> return []
