@@ -7,14 +7,13 @@ import qualified Data.ByteString as BS
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as TE
-import Data.Text (Text)
+import Data.Text (Text, words, filter, pack)
 import Data.Map.Strict (Map)
 
 import Data.Package as Package
+import qualified Token.TypeSig
 
-import Token.Value
-
-perform ::  Text -> [Package] -> ValueTokens -> [Text]
+perform ::  Text -> [Package] -> Token.TypeSig.Tokens -> [Text]
 perform term packages valueTokens =
   let
     -- asMap =
@@ -39,11 +38,25 @@ perform term packages valueTokens =
   --     case Map.lookup i asMap of
   --       Just x -> x : acc
   --       Nothing -> acc
+    termAsTokens =
+      Token.TypeSig.typeSigToToken term
+
+    get acc termPart =
+      case Map.lookup termPart valueTokens of
+        Just xs -> List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
+        Nothing -> acc
+
+    result =
+      -- List.reverse $
+      -- List.sortOn snd $
+      List.take 100 $
+      List.filter ((==) (length termAsTokens) . snd) $
+      Map.toList $
+      List.foldl get Map.empty $
+      termAsTokens
+
   in
-    case Map.lookup term valueTokens of
-      Just xs -> List.map (\(ValueInfo x y z _) -> x <> " " <> y <> " " <> z) xs
-      Nothing -> Map.keys valueTokens
-    -- zipWith merge inTitle inSummary
+    List.map (\((Token.TypeSig.Info x y z a), rank) -> z <> a <> (Data.Text.pack $ show rank)) result
 
 
 byteStringContains :: BS.ByteString -> BS.ByteString -> Bool
