@@ -5,6 +5,7 @@
 module Server where
 
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.Map.Strict as Map
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Gzip
@@ -12,7 +13,7 @@ import Servant
 import System.IO
 import Data.Text (Text, pack)
 
-import Token.Value
+import qualified Token.TypeSig
 import Data.Package
 import Search
 
@@ -29,26 +30,27 @@ api = Proxy
 run :: [Package] -> IO ()
 run packages = do
   let port = 8080
-      valueTokens = Token.Value.tokenize packages
+      valueTokens = Token.TypeSig.tokenize packages
       settings =
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
         defaultSettings
+  putStr $ unlines . map show $ Map.toList $ Map.map length valueTokens
   runSettings settings =<< mkApp packages valueTokens
 
 
-mkApp :: [Package] -> ValueTokens -> IO Application
+mkApp :: [Package] -> Token.TypeSig.Tokens -> IO Application
 mkApp packages valueTokens =
   return . gzip def { gzipFiles = GzipCompress } . serve api $ server packages valueTokens
 
 
-server :: [Package] -> ValueTokens -> Server Api
+server :: [Package] -> Token.TypeSig.Tokens -> Server Api
 server packages valueTokens =
   searchPackages packages valueTokens :<|>
   serveDirectoryFileServer "./"
 
 
-searchPackages :: [Package] -> ValueTokens -> Maybe String -> Handler [Text]
+searchPackages :: [Package] -> Token.TypeSig.Tokens -> Maybe String -> Handler [Text]
 searchPackages packages valueTokens queryParam =
   case queryParam of
     Just term ->
