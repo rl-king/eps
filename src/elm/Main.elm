@@ -133,6 +133,7 @@ viewHeader model =
             , css styling.input
             , autofocus True
             , value model.searchTerm
+            , placeholder "(a -> b) -> Maybe a -> Maybe b, ..."
             ]
             []
         , button [ onClick PerformSearch, css styling.button ] [ text "search" ]
@@ -210,10 +211,16 @@ styling =
     , input =
         [ width (pct 100)
         , border3 (px 1) solid colors.grey
-        , height (rem 2.5)
+        , height (rem 2)
         , margin3 (rem 1) zero zero
-        , fontSize (rem 1.25)
+        , fontSize (rem 1)
         , padding2 zero (rem 0.5)
+        , property "-webkit-appearance" "none"
+        , Breakpoint.small
+            [ fontSize (rem 1.25)
+            , height (rem 2.5)
+            , padding2 zero (rem 0.15)
+            ]
         ]
     , header =
         [ width (pct 100)
@@ -221,10 +228,12 @@ styling =
         , backgroundColor colors.lightGrey
         , height (pct 100)
         , position sticky
+        , property "position" "-webkit-sticky"
+        , zIndex (int 1)
         , top (rem -3)
         ]
     , searchResults =
-        [ padding (rem 1)
+        [ padding2 zero (rem 1)
         , width (pct 100)
         ]
     , searchResult =
@@ -232,11 +241,8 @@ styling =
         , borderBottom3 (px 1) solid colors.grey
         ]
     , searchResultHeader =
-        [ padding2 (rem 0.5) zero
-
-        -- , backgroundColor colors.grey
-        , displayFlex
-        , justifyContent spaceBetween
+        [ padding4 (rem 0.5) (rem 5) (rem 0.5) zero
+        , position relative
         ]
     , searchResultBody =
         []
@@ -259,7 +265,10 @@ styling =
         , fontSize (rem 1)
         ]
     , searchResultCategory =
-        [ padding2 (rem 0.15) (rem 0.5)
+        [ position absolute
+        , right zero
+        , top (rem 0.5)
+        , padding2 (rem 0.15) (rem 0.5)
         ]
     , button =
         [ backgroundColor transparent
