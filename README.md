@@ -11,3 +11,6 @@ haskell -- compile haskell
 server -- start haskell server
 watch -- watch haskell files and compile on change
 ```
+
+## Typeface
+https://github.com/be5invis/Iosevka

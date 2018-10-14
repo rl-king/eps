@@ -20,6 +20,7 @@ import Html.Styled.Events exposing (onClick, onInput)
 import Html.Styled.Keyed as Keyed
 import Http
 import Json.Decode as Decode
+import Markdown
 import Url exposing (Url)
 
 
@@ -118,14 +119,14 @@ viewBody : Model -> Html Msg
 viewBody model =
     main_ [ css styling.main ]
         [ global globalStyling
-        , viewSidebar model
+        , viewHeader model
         , viewResults model
         ]
 
 
-viewSidebar : Model -> Html Msg
-viewSidebar model =
-    section [ css styling.sidebar ]
+viewHeader : Model -> Html Msg
+viewHeader model =
+    header [ css styling.header ]
         [ h1 [ css styling.title ] [ text "eps" ]
         , input
             [ onInput OnSearchTermInput
@@ -135,10 +136,6 @@ viewSidebar model =
             ]
             []
         , button [ onClick PerformSearch, css styling.button ] [ text "search" ]
-        , p []
-            [ text (String.fromInt <| List.length model.searchResults)
-            , text " results"
-            ]
         ]
 
 
@@ -152,20 +149,36 @@ viewResult : SearchResult -> Html Msg
 viewResult result =
     div [ css styling.searchResult ]
         [ header [ css styling.searchResultHeader ]
-            [ span
-                [ css styling.searchResultCategory
-                , style "background-color" (categoryToColor result.category)
-                ]
-                [ text (categoryToString result.category)
-                ]
-            , span [ css styling.searchResultSignature ] [ text result.valueName ]
-            , text " : "
-            , span [ css styling.searchResultSignature ] [ text result.typeSignature ]
+            [ viewResultSignature result
+            , viewResultCategory result.category
             ]
         , div [ css styling.searchResultBody ]
-            [ span [ css styling.searchResultPackageName ] [ text result.packageName ]
-            , span [ css styling.searchResultModuleName ] [ text result.moduleName ]
+            [ span [ css styling.searchResultDescription ]
+                [ fromUnstyled <| Markdown.toHtml [] result.valueComment ]
+            , footer [ css styling.searchResultFooter ]
+                [ span [ css styling.searchResultPackageName ] [ text result.packageName ]
+                , span [ css styling.searchResultModuleName ] [ text result.moduleName ]
+                ]
             ]
+        ]
+
+
+viewResultSignature : SearchResult -> Html Msg
+viewResultSignature result =
+    code [ css styling.searchResultSignature ]
+        [ span [ css styling.searchResultValueName ] [ text result.valueName ]
+        , text " : "
+        , text result.typeSignature
+        ]
+
+
+viewResultCategory : Category -> Html Msg
+viewResultCategory category =
+    span
+        [ css styling.searchResultCategory
+        , style "background-color" (categoryToColor category)
+        ]
+        [ text (categoryToString category)
         ]
 
 
@@ -178,6 +191,8 @@ colors =
     , grey = hex "eee"
     , darkGrey = hex "5A6378"
     , white = hex "fff"
+    , blue = hex "#005eff"
+    , red = hex "#ff3636"
     }
 
 
@@ -188,62 +203,68 @@ styling =
     , title =
         [ fontWeight (int 500)
         , fontSize (rem 1)
-        , margin2 (rem 0.25) zero
+        , margin zero
+        , height (rem 2)
         ]
     , input =
         [ width (pct 100)
         , border3 (px 1) solid colors.grey
         , height (rem 2.5)
-        , margin3 (rem 2) zero (rem 1)
+        , margin3 (rem 1) zero zero
         , fontSize (rem 1.25)
         , padding2 zero (rem 0.5)
         ]
-    , sidebar =
+    , header =
         [ width (pct 100)
-        , padding2 (rem 2) (rem 1)
+        , padding (rem 1)
         , backgroundColor colors.lightGrey
-        , Breakpoint.small
-            [ position fixed
-            , top zero
-            , left zero
-            , width (rem 20)
-            , height (pct 100)
-            ]
+        , height (pct 100)
+        , position sticky
+        , top (rem -3)
         ]
     , searchResults =
         [ padding (rem 1)
-        , Breakpoint.small
-            [ marginLeft (rem 20)
-            , width (calc (pct 100) minus (rem 20))
-            ]
+        , width (pct 100)
         ]
     , searchResult =
-        [ backgroundColor colors.lightGrey
-        , marginBottom (rem 1)
+        [ padding2 (rem 0.5) zero
+        , borderBottom3 (px 1) solid colors.grey
         ]
     , searchResultHeader =
-        [ padding2 (rem 1) (rem 1)
-        , backgroundColor colors.grey
-        ]
-    , searchResultBody =
-        [ padding2 (rem 0.5) (rem 1)
+        [ padding2 (rem 0.5) zero
+
+        -- , backgroundColor colors.grey
         , displayFlex
         , justifyContent spaceBetween
         ]
+    , searchResultBody =
+        []
+    , searchResultDescription =
+        [ fontSize (rem 0.875)
+        , color colors.darkGrey
+        ]
+    , searchResultFooter =
+        [ displayFlex
+        , justifyContent spaceBetween
+        , paddingTop (rem 0.5)
+        ]
     , searchResultSignature =
-        [ fontSize (rem 1.25)
+        [ fontSize (rem 1)
+        , color colors.blue
+        ]
+    , searchResultValueName =
+        [ color colors.red
         ]
     , searchResultPackageName =
         [ fontWeight (int 500)
-        , fontSize (rem 1.15)
+        , fontSize (rem 1)
         ]
     , searchResultModuleName =
         [ fontWeight (int 500)
-        , fontSize (rem 1.15)
+        , fontSize (rem 1)
         ]
     , searchResultCategory =
         [ padding2 (rem 0.15) (rem 0.5)
-        , marginRight (rem 1)
         ]
     , button =
         [ backgroundColor transparent
@@ -288,6 +309,22 @@ globalStyling =
         , padding zero
         , margin zero
         ]
+    , Global.code
+        [ fontSize (rem 0.875)
+        , lineHeight (rem 1.5)
+        , padding zero
+        , fontFamilies
+            [ "Iosevka SS08 Web"
+            , "monospace"
+            ]
+        ]
+    , Global.p [ margin3 (rem 0.15) zero (rem 0.25) ]
+    , Global.pre [ display none ]
+    , Global.img
+        [ maxWidth (rem 35)
+        , width (pct 100)
+        , margin2 (rem 1) zero
+        ]
     ]
 
 
@@ -300,6 +337,7 @@ type alias SearchResult =
     , packageName : String
     , moduleName : String
     , valueName : String
+    , valueComment : String
     , typeSignature : String
     }
 
@@ -335,11 +373,12 @@ requestAll =
 
 decodeResult : Decode.Decoder SearchResult
 decodeResult =
-    Decode.map5 SearchResult
+    Decode.map6 SearchResult
         (Decode.field "category" decodeCategory)
         (Decode.field "packageName" Decode.string)
         (Decode.field "moduleName" Decode.string)
         (Decode.field "valueName" Decode.string)
+        (Decode.field "valueComment" Decode.string)
         (Decode.field "typeSignature" Decode.string)
 
 

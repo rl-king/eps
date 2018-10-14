@@ -29,8 +29,8 @@ extract (Package{packageName, modules}) =
     toKeyValuePairs acc Module{moduleName, values} =
       List.concatMap (toKeyValuePairsHelper moduleName) values ++ acc
 
-    toKeyValuePairsHelper moduleName (Value_ typeName _ type_) =
-      List.map (\x -> (x ,[SR.Result SR.Value packageName moduleName typeName type_])) $
+    toKeyValuePairsHelper moduleName (Value_ typeName comment type_) =
+      List.map (\x -> (x ,[SR.Result SR.Value packageName moduleName typeName comment type_])) $
       typeSigToToken type_
   in
     List.foldl toKeyValuePairs [] modules

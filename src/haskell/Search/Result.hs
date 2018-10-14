@@ -28,6 +28,7 @@ data Result =
   , packageName :: Text
   , moduleName :: Text
   , valueName :: Text
+  , valueComment :: Text
   , typeSignature :: Text
   } deriving (Generic, Ord, Eq)
 
