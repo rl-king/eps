@@ -67,9 +67,9 @@ simplifyTypeVariables =
   (\(_,_,x) -> x) . List.foldr toLowercaseChar (Map.empty, ['a'..], [])
 
 
-toLowercaseChar:: Text -> (Map Text Text, [Char], [Text]) -> (Map Text Text, [Char], [Text])
+toLowercaseChar :: Text -> (Map Text Text, [Char], [Text]) -> (Map Text Text, [Char], [Text])
 toLowercaseChar type_ (used, options, acc) =
-  if not . Char.isLower $ Text.head type_ then
+  if (not $ Char.isLower $ Text.head type_) || isReserved type_ then
     (used, options, type_ : acc)
   else
     case Map.lookup type_ used of
@@ -78,3 +78,9 @@ toLowercaseChar type_ (used, options, acc) =
       Nothing ->
         (Map.insert type_ simpleName used, drop 1 options, simpleName : acc)
         where simpleName = Text.singleton $ List.head options
+
+
+isReserved :: Text -> Bool
+isReserved type_ =
+  List.any (\x -> Text.take (Text.length x) type_ == x)
+  ["number", "comparable", "appendable", "compappend"]
