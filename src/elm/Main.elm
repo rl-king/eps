@@ -157,7 +157,6 @@ viewResult result =
                 [ fromUnstyled <| Markdown.toHtml [] result.valueComment ]
             , footer [ css styling.searchResultFooter ]
                 [ span [ css styling.searchResultPackageName ] [ text result.packageName ]
-                , span [ css styling.searchResultModuleName ] [ text result.moduleName ]
                 ]
             ]
         ]
@@ -166,7 +165,9 @@ viewResult result =
 viewResultSignature : SearchResult -> Html Msg
 viewResultSignature result =
     code [ css styling.searchResultSignature ]
-        [ span [ css styling.searchResultValueName ] [ text result.valueName ]
+        [ span [ css styling.searchResultValueName ]
+            [ text (result.moduleName ++ "." ++ result.valueName)
+            ]
         , text " : "
         , text result.typeSignature
         ]
@@ -244,9 +245,7 @@ styling =
         , color colors.darkGrey
         ]
     , searchResultFooter =
-        [ displayFlex
-        , justifyContent spaceBetween
-        , paddingTop (rem 0.5)
+        [ paddingTop (rem 0.5)
         ]
     , searchResultSignature =
         [ fontSize (rem 1)
@@ -256,10 +255,6 @@ styling =
         [ color colors.red
         ]
     , searchResultPackageName =
-        [ fontWeight (int 500)
-        , fontSize (rem 1)
-        ]
-    , searchResultModuleName =
         [ fontWeight (int 500)
         , fontSize (rem 1)
         ]
