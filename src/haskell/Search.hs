@@ -2,66 +2,70 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Search where
 
-import qualified Data.ByteString as BS
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as TE
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
-import qualified Data.Package as Package
-import qualified Token.TypeSig
 import qualified Search.Result as SR
+import qualified Token.TypeSig
+import qualified Token.ValueName
 import Data.Package (Package)
 
 
 
-perform ::  Text -> [Package] -> Token.TypeSig.Tokens -> [SR.Result]
-perform term packages valueTokens =
+-- INDEX
+
+
+data Index =
+  Index
+  { typeSignatures :: Map (Text, Int) [SR.Result]
+  , valueNames :: Map (Text, Int) [SR.Result]
+  }
+
+
+index :: [Package] -> Index
+index packages = Index
+  (Token.TypeSig.tokenize packages)
+  (Token.ValueName.tokenize packages)
+
+
+info :: Index -> IO ()
+info Index{typeSignatures, valueNames} =
   let
-    -- asMap =
-      -- Map.fromList $ List.map (\p@(Package n _ _ _) -> (n, p)) packages
-    --
-    -- rank x check weight =
-    --   if byteStringContains term (TE.encodeUtf8 check) then
-    --     (weight, x)
-    --   else
-    --     (0, x)
+    ts = Map.toList $ Map.map length $ typeSignatures
+    vn = Map.toList $ Map.map length $ valueNames
+  in do
+    putStrLn $ unlines . map show $ ts
+    putStrLn $ unlines . map show $ vn
+    print $ show (length ts) ++ " : indexed type signatures"
+    print $ show (length vn) ++ " : indexed value names"
 
-    -- inTitle =
-    --   List.map (\(Package x _ _ _) -> rank x x 1) packages
 
-    -- inSummary =
-    --   List.map (\(Package x s _ _) -> rank x s 0.5) packages
+-- SEARCHING
 
-  --   merge (r1, a) (r2, _) =
-  --     (r1 + r2, a)
 
-  --   get (_, i) acc =
-  --     case Map.lookup i asMap of
-  --       Just x -> x : acc
-  --       Nothing -> acc
-    termAsTokens =
-      Token.TypeSig.typeSigToToken term
-
-    get acc termPart =
-      case Map.lookup termPart valueTokens of
+perform ::  Text -> Index -> [SR.Result]
+perform term (Index{typeSignatures, valueNames}) =
+  let
+    get selectedIndex acc termPart =
+      case Map.lookup termPart selectedIndex of
         Just xs -> List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
         Nothing -> acc
 
-    result =
-      -- List.reverse $
-      -- List.sortOn snd $
-      List.take 100 $
-      List.filter ((==) (length termAsTokens) . snd) $
-      Map.toList $
-      List.foldl get Map.empty $
-      termAsTokens
+    search terms selectedIndex =
+      List.map fst $ List.take 100 $ List.filter ((==) (length terms) . snd) $
+      Map.toList $ List.foldl (get selectedIndex) Map.empty $ terms
   in
-    List.map fst result
+    if mightBeModuleOrFunction term then
+      search (Token.TypeSig.typeSigToToken term) typeSignatures
+    else
+      search [(term, 1)] valueNames
 
 
-byteStringContains :: BS.ByteString -> BS.ByteString -> Bool
-byteStringContains term bs =
-  not . BS.null . snd $ BS.breakSubstring term bs
+mightBeModuleOrFunction :: Text -> Bool
+mightBeModuleOrFunction term =
+  (List.any (Char.isUpper . Text.head) $ Text.words term) ||
+  (List.any ((==) "->") $ Text.words term)

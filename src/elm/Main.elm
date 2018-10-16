@@ -11,8 +11,10 @@ import Html.Styled.Attributes
         ( attribute
         , autofocus
         , css
+        , href
         , placeholder
         , style
+        , target
         , type_
         , value
         )
@@ -21,6 +23,7 @@ import Html.Styled.Keyed as Keyed
 import Http
 import Json.Decode as Decode
 import Markdown
+import String.Interpolate exposing (interpolate)
 import Url exposing (Url)
 
 
@@ -150,14 +153,17 @@ viewResult : SearchResult -> Html Msg
 viewResult result =
     div [ css styling.searchResult ]
         [ header [ css styling.searchResultHeader ]
-            [ viewResultSignature result
+            [ link ValueLink result [] [ viewResultSignature result ]
             , viewResultCategory result.category
             ]
         , div [ css styling.searchResultBody ]
             [ span [ css styling.searchResultDescription ]
                 [ fromUnstyled <| Markdown.toHtml [] result.valueComment ]
             , footer [ css styling.searchResultFooter ]
-                [ span [ css styling.searchResultPackageName ] [ text result.packageName ]
+                [ link PackageLink
+                    result
+                    [ css styling.searchResultPackageName ]
+                    [ text result.packageName ]
                 ]
             ]
         ]
@@ -185,6 +191,38 @@ viewResultCategory category =
 
 
 
+-- LINK
+
+
+baseUrl : String
+baseUrl =
+    "http://package.elm-lang.org/packages"
+
+
+type Link
+    = PackageLink
+    | ModuleLink
+    | ValueLink
+
+
+link : Link -> SearchResult -> List (Attribute Msg) -> List (Html Msg) -> Html Msg
+link linkType { packageName, moduleName, valueName } attributes content =
+    let
+        anchor path segments =
+            a ([ href (interpolate path segments), target "_blank" ] ++ attributes) content
+    in
+    case linkType of
+        PackageLink ->
+            anchor "{0}/{1}/latest" [ baseUrl, packageName ]
+
+        ModuleLink ->
+            anchor "{0}/{1}/latest/{2}" [ baseUrl, packageName, moduleName ]
+
+        ValueLink ->
+            anchor "{0}/{1}/latest/{2}#{3}" [ baseUrl, packageName, moduleName, valueName ]
+
+
+
 -- STYLING
 
 
@@ -192,6 +230,7 @@ colors =
     { lightGrey = hex "fafafa"
     , grey = hex "eee"
     , darkGrey = hex "5A6378"
+    , black = hex "111"
     , white = hex "fff"
     , blue = hex "#005eff"
     , red = hex "#ff3636"
@@ -324,10 +363,16 @@ globalStyling =
         ]
     , Global.p [ margin3 (rem 0.15) zero (rem 0.25) ]
     , Global.pre [ display none ]
+    , Global.a
+        [ textDecoration none
+        , color colors.black
+        , hover [ textDecoration underline ]
+        ]
     , Global.img
-        [ maxWidth (rem 35)
+        [ maxWidth (rem 5)
         , width (pct 100)
         , margin2 (rem 1) zero
+        , display none
         ]
     ]
 
