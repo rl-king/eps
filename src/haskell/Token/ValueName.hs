@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Token.ValueName where
 
@@ -22,7 +21,7 @@ tokenize =
 
 
 extract :: Package -> [((Text, Int), [SR.Result])]
-extract (Package{packageName, modules}) =
+extract Package{packageName, modules} =
   let
     toKeyValuePairs acc Module{moduleName, values} =
       List.map (toKeyValuePairsHelper moduleName) values ++ acc

@@ -35,8 +35,8 @@ index packages = Index
 info :: Index -> IO ()
 info Index{typeSignatures, valueNames} =
   let
-    ts = Map.toList $ Map.map length $ typeSignatures
-    vn = Map.toList $ Map.map length $ valueNames
+    ts = Map.toList $ Map.map length typeSignatures
+    vn = Map.toList $ Map.map length valueNames
   in do
     putStrLn $ unlines . map show $ ts
     putStrLn $ unlines . map show $ vn
@@ -48,7 +48,7 @@ info Index{typeSignatures, valueNames} =
 
 
 perform ::  Text -> Index -> [SR.Result]
-perform term (Index{typeSignatures, valueNames}) =
+perform term Index{typeSignatures, valueNames} =
   let
     get selectedIndex acc termPart =
       case Map.lookup termPart selectedIndex of
@@ -57,7 +57,7 @@ perform term (Index{typeSignatures, valueNames}) =
 
     search terms selectedIndex =
       List.map fst $ List.take 100 $ List.filter ((==) (length terms) . snd) $
-      Map.toList $ List.foldl (get selectedIndex) Map.empty $ terms
+      Map.toList $ List.foldl (get selectedIndex) Map.empty terms
   in
     if mightBeModuleOrFunction term then
       search (Token.TypeSig.typeSigToToken term) typeSignatures
@@ -68,4 +68,4 @@ perform term (Index{typeSignatures, valueNames}) =
 mightBeModuleOrFunction :: Text -> Bool
 mightBeModuleOrFunction term =
   (List.any (Char.isUpper . Text.head) $ Text.words term) ||
-  (List.any ((==) "->") $ Text.words term)
+  (List.any ("->" ==) $ Text.words term)

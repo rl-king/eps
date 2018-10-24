@@ -23,7 +23,7 @@ tokenize =
 
 
 extract :: Package -> [((Text, Int), [SR.Result])]
-extract (Package{packageName, modules}) =
+extract Package{packageName, modules} =
   let
     toKeyValuePairs acc Module{moduleName, values} =
       List.concatMap (toKeyValuePairsHelper moduleName) values ++ acc

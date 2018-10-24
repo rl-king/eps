@@ -31,7 +31,7 @@ run packages = do
       searchIndex = Search.index packages
       settings =
         setPort port $
-        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port)) $
+        setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
         defaultSettings
   Search.info searchIndex
   runSettings settings =<< mkApp packages searchIndex

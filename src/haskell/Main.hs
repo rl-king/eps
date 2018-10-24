@@ -75,7 +75,7 @@ toLatestVersionDocUrl (Package pName _ pVersions _) =
   "https://package.elm-lang.org/packages/"
   ++ Text.unpack pName
   ++ "/"
-  ++ (Text.unpack . head . reverse) pVersions
+  ++ (Text.unpack . last) pVersions
   ++ "/docs.json"
 
 
