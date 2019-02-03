@@ -25,12 +25,24 @@ tokenize =
 extract :: Package -> [((Text, Int), [SR.Result])]
 extract Package{packageName, modules} =
   let
-    toKeyValuePairs acc Module{moduleName, values} =
-      List.concatMap (toKeyValuePairsHelper moduleName) values ++ acc
+    toKeyValuePairs acc Module{moduleName, values, binops, aliases} =
+      List.concatMap (valueToPair moduleName) values ++
+      List.concatMap (aliasesToPair moduleName) aliases ++
+      List.concatMap (binopToPair moduleName) binops ++ acc
 
-    toKeyValuePairsHelper moduleName (Value_ typeName comment type_) =
+    aliasesToPair moduleName (TypeAlias typeName comment _ type_) =
+      toPair moduleName typeName comment type_
+
+    binopToPair moduleName (Binop typeName comment type_) =
+      toPair moduleName typeName comment type_
+
+    valueToPair moduleName (Value_ typeName comment type_) =
+      toPair moduleName typeName comment type_
+
+    toPair moduleName typeName comment type_ =
       List.map (\x -> (x ,[SR.Result SR.Value packageName moduleName typeName comment type_])) $
       typeSigToToken type_
+
   in
     List.foldl toKeyValuePairs [] modules
 
