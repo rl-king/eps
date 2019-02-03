@@ -10,7 +10,9 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
+import Token.Util
 import qualified Search.Result as SR
+
 
 
 type Tokens =
@@ -61,11 +63,6 @@ typeSigToToken =
       Text.filter (not . flip elem ['(', ')', ',' , '}', '{'])
   in
     countOccurrences . removeModules . simplifyTypeVariables . Text.words . removeChars
-
-
-countOccurrences :: Ord a => [a] -> [(a, Int)]
-countOccurrences =
-  Map.toList . List.foldl (\acc k -> Map.insertWith (+) k 1 acc) Map.empty
 
 
 {-|

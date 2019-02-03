@@ -29,8 +29,8 @@ extractValueName :: Package -> [((Text, Int), [SR.Result])]
 extractValueName Package{packageName, modules} =
   let
     toKeyValuePairs acc Module{moduleName, values, binops, aliases} =
-      -- List.map (valueToPair moduleName) values ++
-      -- List.map (aliasesToPair moduleName) aliases ++
+      List.map (valueToPair moduleName) values ++
+      List.map (aliasesToPair moduleName) aliases ++
       List.map (binopToPair moduleName) binops ++
       acc
 
@@ -66,7 +66,7 @@ extractModuleName Package{packageName, modules} =
   in
     List.map toKeyValuePairs modules
 
-
+packageName
 
 -- PACKAGE NAMES
 
