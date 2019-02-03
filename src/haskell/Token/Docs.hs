@@ -25,6 +25,7 @@ type Tokens =
 
 tokenizeDocs :: [Package] -> Tokens
 tokenizeDocs =
+  Map.filter ((>) 400 . length) .
   Map.fromListWith (++) . concatMap extractSummary
 
 
@@ -36,6 +37,61 @@ extractSummary Package{packageName, summary} =
   in
     List.map toPair . countOccurrences $ filterStopWords (Text.words summary)
 
+
+
+-- COMMENTS
+
+
+tokenizeComments :: [Package] -> Tokens
+tokenizeComments =
+  Map.filter ((>) 400 . length) .
+  Map.fromListWith (++) . concatMap extractComments
+
+
+extractComments :: Package -> [((Text, Int), [SR.Result])]
+extractComments Package{packageName, modules} =
+  let
+    toComments acc Module{comment, customTypes, values, binops, aliases} =
+      toPair comment :
+      List.map valueComment values ++
+      List.map binopComment binops ++
+      List.map customTypeComment customTypes ++
+      List.map aliasesComment aliases ++ acc
+
+    valueComment (Value_ _ comment _) =
+      toPair comment
+
+    binopComment (Binop _ comment _) =
+      toPair comment
+
+    customTypeComment (CustomType _ comment _ _) =
+      toPair comment
+
+    aliasesComment (TypeAlias _ comment _ _) =
+      toPair comment
+
+    toPair =
+      List.map toPair_ . List.nub . filterStopWords . Text.words . cleanUp
+
+    toPair_ x =
+      ((x, 1), [SR.Result SR.Value packageName "" "" "" ""])
+  in
+    concat $ List.foldl toComments [] modules
+
+
+-- HELPERS
+
+cleanUp :: Text -> Text
+cleanUp =
+  Text.filter (not . flip Set.member cleanUpChars)
+
+
+cleanUpChars :: Set Char
+cleanUpChars =
+  Set.fromList
+  [ '.'
+  , ','
+  ]
 
 filterStopWords :: [Text] -> [Text]
 filterStopWords =

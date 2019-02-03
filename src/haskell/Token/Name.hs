@@ -66,7 +66,6 @@ extractModuleName Package{packageName, modules} =
   in
     List.map toKeyValuePairs modules
 
-packageName
 
 -- PACKAGE NAMES
 

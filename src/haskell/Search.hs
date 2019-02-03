@@ -8,6 +8,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import Data.Map.Strict (Map)
 import Data.Text (Text)
+import Control.Monad
 
 import qualified Search.Result as SR
 import qualified Token.Docs
@@ -27,6 +28,7 @@ data Index =
   , moduleNames :: Map (Text, Int) [SR.Result]
   , packageNames :: Map (Text, Int) [SR.Result]
   , docs :: Map (Text, Int) [SR.Result]
+  , comments :: Map (Text, Int) [SR.Result]
   }
 
 
@@ -37,36 +39,37 @@ index packages = Index
   (Token.Name.tokenizeModuleNames packages)
   (Token.Name.tokenizePackageNames packages)
   (Token.Docs.tokenizeDocs packages)
+  (Token.Docs.tokenizeComments packages)
 
 
 info :: Index -> IO ()
-info Index{typeSignatures, valueNames, moduleNames, packageNames, docs} =
+info index =
   let
     tl = Map.toList . Map.map length
-    ts = tl typeSignatures
-    vn = tl valueNames
-    mn = tl moduleNames
-    pn = tl packageNames
-    d = tl docs
+    results = putStrLn . unlines . map show . take 50 . reverse
+
+    ts = tl $ typeSignatures index
+    vn = tl $ valueNames index
+    mn = tl $ moduleNames index
+    pn = tl $ packageNames index
+    d = tl $ docs index
+    c = tl $ comments index
   in
     do
-      putStrLn $ unlines $ map show ts
-      putStrLn $ unlines $ map show vn
-      putStrLn $ unlines $ map show mn
-      putStrLn $ unlines $ map show pn
-      putStrLn $ unlines $  map show $ List.sortOn snd d
+      mapM_ results [ts, vn, mn, pn, List.sortOn snd d, List.sortOn snd c]
       print $ show (length ts) ++ " : indexed type signatures"
       print $ show (length vn) ++ " : indexed value names"
       print $ show (length mn) ++ " : indexed module names"
       print $ show (length pn) ++ " : indexed package names"
       print $ show (length d) ++ " : indexed docs"
+      print $ show (length c) ++ " : indexed comments"
 
 
 -- SEARCHING
 
 
 perform ::  Text -> Index -> [SR.Result]
-perform term Index{typeSignatures, valueNames, moduleNames, docs} =
+perform term Index{typeSignatures, valueNames, comments, docs} =
   let
     get selectedIndex acc termPart =
       case Map.lookup termPart selectedIndex of
@@ -80,7 +83,7 @@ perform term Index{typeSignatures, valueNames, moduleNames, docs} =
     -- if searchTypeSigs term then
     --   search (Token.TypeSig.typeSigToToken term) typeSignatures
     -- else
-      search [(term, 1)] docs
+      search (List.map (\x -> (x, 1)) (Text.words term)) comments
 
 
 searchTypeSigs :: Text -> Bool
