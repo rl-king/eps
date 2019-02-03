@@ -23,6 +23,8 @@ data Index =
   Index
   { typeSignatures :: Map (Text, Int) [SR.Result]
   , valueNames :: Map (Text, Int) [SR.Result]
+  , moduleNames :: Map (Text, Int) [SR.Result]
+  , packageNames :: Map (Text, Int) [SR.Result]
   }
 
 
@@ -30,25 +32,35 @@ index :: [Package] -> Index
 index packages = Index
   (Token.TypeSig.tokenize packages)
   (Token.Name.tokenizeValueNames packages)
+  (Token.Name.tokenizeModuleNames packages)
+  (Token.Name.tokenizePackageNames packages)
 
 
 info :: Index -> IO ()
-info Index{typeSignatures, valueNames} =
+info Index{typeSignatures, valueNames, moduleNames, packageNames} =
   let
-    ts = Map.toList $ Map.map length typeSignatures
-    vn = Map.toList $ Map.map length valueNames
-  in do
-    putStrLn $ unlines . map show $ ts
-    -- putStrLn $ unlines . map show $ vn
-    print $ show (length ts) ++ " : indexed type signatures"
-    print $ show (length vn) ++ " : indexed value names"
+    tl = Map.toList . Map.map length
+    ts = tl typeSignatures
+    vn = tl valueNames
+    mn = tl moduleNames
+    pn = tl packageNames
+  in
+    do
+      putStrLn $ unlines . map show $ ts
+      putStrLn $ unlines . map show $ vn
+      putStrLn $ unlines . map show $ mn
+      putStrLn $ unlines . map show $ pn
+      print $ show (length ts) ++ " : indexed type signatures"
+      print $ show (length vn) ++ " : indexed value names"
+      print $ show (length mn) ++ " : indexed module names"
+      print $ show (length pn) ++ " : indexed package names"
 
 
 -- SEARCHING
 
 
 perform ::  Text -> Index -> [SR.Result]
-perform term Index{typeSignatures, valueNames} =
+perform term Index{typeSignatures, valueNames, moduleNames, packageNames} =
   let
     get selectedIndex acc termPart =
       case Map.lookup termPart selectedIndex of
@@ -59,13 +71,13 @@ perform term Index{typeSignatures, valueNames} =
       List.map fst $ List.take 100 $ List.filter ((==) (length terms) . snd) $
       Map.toList $ List.foldl (get selectedIndex) Map.empty terms
   in
-    if mightBeModuleOrFunction term then
-      search (Token.TypeSig.typeSigToToken term) typeSignatures
-    else
-      search [(term, 1)] valueNames
+    -- if searchTypeSigs term then
+    --   search (Token.TypeSig.typeSigToToken term) typeSignatures
+    -- else
+      search [(term, 1)] packageNames
 
 
-mightBeModuleOrFunction :: Text -> Bool
-mightBeModuleOrFunction term =
+searchTypeSigs :: Text -> Bool
+searchTypeSigs term =
   (List.any (Char.isUpper . Text.head) $ Text.words term) ||
-  (List.any ("->" ==) $ Text.words term)
+  (List.elem "->" $ Text.words term)
