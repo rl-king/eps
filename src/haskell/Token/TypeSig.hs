@@ -47,7 +47,6 @@ extract Package{packageName, modules} =
     List.foldl toKeyValuePairs [] modules
 
 
-
 {-|
   typeSigToToken "(a -> Task x b) -> Task x a -> Task x b"
   --> [("->",3),("Task",3),("a",2),("b",3),("c",2)]
@@ -80,7 +79,7 @@ simplifyTypeVariables =
 
 toLowercaseChar :: Text -> (Map Text Text, [Char], [Text]) -> (Map Text Text, [Char], [Text])
 toLowercaseChar type_ (used, options, acc) =
-  if (not $ Char.isLower $ Text.head type_) || isReserved type_ then
+  if not (Char.isLower $ Text.head type_) || isReserved type_ then
     (used, options, type_ : acc)
   else
     case Map.lookup type_ used of

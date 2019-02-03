@@ -11,7 +11,7 @@ import Data.Text (Text)
 
 import qualified Search.Result as SR
 import qualified Token.TypeSig
-import qualified Token.ValueName
+import qualified Token.Name
 import Data.Package (Package)
 
 
@@ -29,7 +29,7 @@ data Index =
 index :: [Package] -> Index
 index packages = Index
   (Token.TypeSig.tokenize packages)
-  (Token.ValueName.tokenize packages)
+  (Token.Name.tokenizeValueNames packages)
 
 
 info :: Index -> IO ()
@@ -39,7 +39,7 @@ info Index{typeSignatures, valueNames} =
     vn = Map.toList $ Map.map length valueNames
   in do
     putStrLn $ unlines . map show $ ts
-    putStrLn $ unlines . map show $ vn
+    -- putStrLn $ unlines . map show $ vn
     print $ show (length ts) ++ " : indexed type signatures"
     print $ show (length vn) ++ " : indexed value names"
 
