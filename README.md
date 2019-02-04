@@ -4,10 +4,10 @@
 * Filter code out of docs
 * Stem text for indexing
 * Extract factual information to help rank packages
-** How complete are the docs
-*** Examples
-** Does it have tests
-** Dependencies
+  * How complete are the docs
+    * Examples
+  * Does it have tests
+  * Dependencies
 
 
 ## Getting started
