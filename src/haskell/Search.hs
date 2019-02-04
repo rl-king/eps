@@ -8,7 +8,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import Data.Map.Strict (Map)
 import Data.Text (Text)
-import Control.Monad
 
 import qualified Search.Result as SR
 import qualified Token.Docs
@@ -83,7 +82,8 @@ perform term Index{typeSignatures, valueNames, comments, docs} =
     -- if searchTypeSigs term then
     --   search (Token.TypeSig.typeSigToToken term) typeSignatures
     -- else
-      search (List.map (\x -> (x, 1)) (Text.words term)) comments
+      search (List.map (\x -> (x, 1)) (Token.Docs.toTokens term)) comments
+
 
 
 searchTypeSigs :: Text -> Bool

@@ -6,6 +6,7 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Token.Stemmer as Stem
 import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Text (Text)
@@ -35,7 +36,7 @@ extractSummary Package{packageName, summary} =
     toPair word =
       (word, [SR.Result SR.Value packageName "" "" "" ""])
   in
-    List.map toPair . countOccurrences $ filterStopWords (Text.words summary)
+    List.map toPair . countOccurrences $ Stem.run $ filterStopWords (Text.words summary)
 
 
 
@@ -51,47 +52,48 @@ tokenizeComments =
 extractComments :: Package -> [((Text, Int), [SR.Result])]
 extractComments Package{packageName, modules} =
   let
-    toComments acc Module{comment, customTypes, values, binops, aliases} =
-      toPair comment :
-      List.map valueComment values ++
-      List.map binopComment binops ++
-      List.map customTypeComment customTypes ++
-      List.map aliasesComment aliases ++ acc
+    toComments acc Module{moduleName, comment, customTypes, values, binops, aliases} =
+      toPair comment moduleName "" :
+      List.map (valueComment moduleName) values ++
+      List.map (binopComment moduleName) binops ++
+      List.map (customTypeComment moduleName) customTypes ++
+      List.map (aliasesComment moduleName) aliases ++ acc
 
-    valueComment (Value_ _ comment _) =
-      toPair comment
+    valueComment mn (Value_ typeName comment _) =
+      toPair mn typeName comment
 
-    binopComment (Binop _ comment _) =
-      toPair comment
+    binopComment mn (Binop typeName comment _) =
+      toPair mn typeName comment
 
-    customTypeComment (CustomType _ comment _ _) =
-      toPair comment
+    customTypeComment mn (CustomType typeName comment _ _) =
+      toPair mn typeName comment
 
-    aliasesComment (TypeAlias _ comment _ _) =
-      toPair comment
+    aliasesComment mn (TypeAlias typeName comment _ _) =
+      toPair mn typeName comment
 
-    toPair =
-      List.map toPair_ . List.nub . filterStopWords . Text.words . cleanUp
+    toPair moduleName typeName comment =
+      List.map (toPair_ moduleName typeName comment) (toTokens comment)
 
-    toPair_ x =
-      ((x, 1), [SR.Result SR.Value packageName "" "" "" ""])
+    toPair_ moduleName typeName c x =
+      ((x, 1), [SR.Result SR.Value packageName moduleName typeName c ""])
   in
     concat $ List.foldl toComments [] modules
 
 
+
 -- HELPERS
 
-cleanUp :: Text -> Text
-cleanUp =
+
+toTokens :: Text -> [Text]
+toTokens =
+  List.nub . Stem.run . filterStopWords . Text.words . Text.toLower .
   Text.filter (not . flip Set.member cleanUpChars)
 
 
 cleanUpChars :: Set Char
 cleanUpChars =
-  Set.fromList
-  [ '.'
-  , ','
-  ]
+  Set.fromList [ '.' , ',']
+
 
 filterStopWords :: [Text] -> [Text]
 filterStopWords =
