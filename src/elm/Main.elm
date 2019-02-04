@@ -253,12 +253,12 @@ styling =
         , height (rem 2)
         , margin3 (rem 1) zero zero
         , fontSize (rem 1)
-        , padding2 zero (rem 0.5)
+        , padding (rem 0.5)
         , property "-webkit-appearance" "none"
         , Breakpoint.small
             [ fontSize (rem 1.25)
             , height (rem 2.5)
-            , padding2 zero (rem 0.15)
+            , padding2 (rem 0.15) (rem 0.5)
             ]
         ]
     , header =
