@@ -1,5 +1,15 @@
 # eps
 
+## Todo
+* Filter code out of docs
+* Stem text for indexing
+* Extract factual information to help rank packages
+** How complete are the docs
+*** Examples
+** Does it have tests
+** Dependencies
+
+
 ## Getting started
 Most recent work is on `dev` branch
 
@@ -14,3 +24,6 @@ watch -- watch haskell files and compile on change
 
 ## Typeface
 https://github.com/be5invis/Iosevka
+
+## Idea
+https://github.com/elm/projects#package-search
