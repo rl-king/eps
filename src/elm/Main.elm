@@ -154,7 +154,6 @@ viewResult result =
     div [ css styling.searchResult ]
         [ header [ css styling.searchResultHeader ]
             [ link ValueLink result [] [ viewResultSignature result ]
-            , viewResultCategory result.category
             ]
         , div [ css styling.searchResultBody ]
             [ span [ css styling.searchResultDescription ]
@@ -164,6 +163,7 @@ viewResult result =
                     result
                     [ css styling.searchResultPackageName ]
                     [ text result.packageName ]
+                , viewResultCategory result.category
                 ]
             ]
         ]
@@ -227,13 +227,38 @@ link linkType { packageName, moduleName, valueName } attributes content =
 
 
 colors =
-    { lightGrey = hex "fafafa"
-    , grey = hex "eee"
+    { lightGrey = hex "FAFAFA"
+    , grey = hex "EEEEEE"
+    , sand = hex "EDE9E0"
+    , sandDarker = hex "D8D1C2"
     , darkGrey = hex "5A6378"
-    , black = hex "111"
-    , white = hex "fff"
-    , blue = hex "#005eff"
-    , red = hex "#ff3636"
+    , black = hex "111111"
+    , white = hex "FFFFFF"
+    , blue = hex "005Eff"
+    , red = hex "ff3636"
+    , green = hex "349033"
+    }
+
+
+font =
+    { mono =
+        [ "Iosevka SS08 Web"
+        , "monospace"
+        ]
+    , text =
+        [ "Source Sans Pro"
+        , "-apple-system"
+        , "BlinkMacSystemFont"
+        , "Segoe UI"
+        , "Roboto"
+        , "Oxygen"
+        , "Ubuntu"
+        , "Cantarell"
+        , "Fira Sans"
+        , "Droid Sans"
+        , "Helvetica Neue"
+        , "sans-serif"
+        ]
     }
 
 
@@ -243,76 +268,84 @@ styling =
         ]
     , title =
         [ fontWeight (int 500)
-        , fontSize (rem 1)
+        , fontSize (rem 1.25)
         , margin zero
         , height (rem 2)
-        ]
-    , input =
-        [ width (pct 100)
-        , border3 (px 1) solid colors.grey
-        , height (rem 2)
-        , margin3 (rem 1) zero zero
-        , fontSize (rem 1)
-        , padding (rem 0.5)
-        , property "-webkit-appearance" "none"
-        , Breakpoint.small
-            [ fontSize (rem 1.25)
-            , height (rem 2.5)
-            , padding2 (rem 0.15) (rem 0.5)
-            ]
+        , position absolute
+        , left (rem 2)
+        , top (rem 2)
         ]
     , header =
         [ width (pct 100)
         , padding (rem 1)
-        , backgroundColor colors.lightGrey
-        , height (pct 100)
-        , position sticky
-        , property "position" "-webkit-sticky"
-        , zIndex (int 1)
-        , top (rem -3)
+        , backgroundColor colors.sand
+        , height (rem 6)
+        , displayFlex
+        , justifyContent center
+        , alignItems center
+        ]
+    , input =
+        [ width (rem 30)
+        , border3 (px 1) solid colors.sandDarker
+        , height (rem 2)
+        , fontSize (rem 1)
+        , padding (rem 0.5)
+        , property "-webkit-appearance" "none"
+        , borderRadius (px 2)
+        , fontFamilies font.mono
+        , Breakpoint.small
+            [ height (rem 2.5)
+            , padding2 (rem 0.15) (rem 0.5)
+            ]
         ]
     , searchResults =
-        [ padding2 zero (rem 1)
+        [ padding2 (rem 1) (rem 1)
         , width (pct 100)
         ]
     , searchResult =
-        [ padding2 (rem 0.5) zero
+        [ padding (rem 1)
         , borderBottom3 (px 1) solid colors.grey
+        , marginBottom (rem 1)
+        , backgroundColor colors.sand
+        , maxWidth (rem 50)
+        , width (pct 100)
+        , borderRadius (px 2)
         ]
     , searchResultHeader =
-        [ padding4 (rem 0.5) (rem 5) (rem 0.5) zero
-        , position relative
-        ]
+        []
     , searchResultBody =
         []
     , searchResultDescription =
-        [ fontSize (rem 0.875)
-        , color colors.darkGrey
+        [ overflow hidden
+        , maxHeight (rem 3)
+        , display block
+        , margin2 (rem 0.5) zero
         ]
     , searchResultFooter =
-        [ paddingTop (rem 0.5)
+        [ fontFamilies font.mono
+        , fontSize (rem 0.875)
+        , displayFlex
+        , justifyContent spaceBetween
+        , alignItems flexEnd
         ]
     , searchResultSignature =
         [ fontSize (rem 1)
-        , color colors.blue
+        , color colors.red
+        , fontWeight (int 500)
         ]
     , searchResultValueName =
-        [ color colors.red
+        [ color colors.black
         ]
     , searchResultPackageName =
-        [ fontWeight (int 500)
-        , fontSize (rem 1)
+        [ color colors.green
         ]
     , searchResultCategory =
-        [ position absolute
-        , right zero
-        , top (rem 0.5)
-        , padding2 (rem 0.15) (rem 0.5)
+        [ padding2 (rem 0.15) (rem 0.5)
         ]
     , button =
         [ backgroundColor transparent
         , border zero
-        , fontSize (rem 1.25)
+        , fontSize (rem 1)
         , backgroundColor colors.darkGrey
         , color colors.white
         , height (rem 2)
@@ -333,19 +366,7 @@ globalStyling =
         [ margin zero
         , padding zero
         , fontSize (pct 87.5)
-        , fontFamilies
-            [ "-apple-system"
-            , "BlinkMacSystemFont"
-            , "Segoe UI"
-            , "Roboto"
-            , "Oxygen"
-            , "Ubuntu"
-            , "Cantarell"
-            , "Fira Sans"
-            , "Droid Sans"
-            , "Helvetica Neue"
-            , "sans-serif"
-            ]
+        , fontFamilies font.text
         ]
     , Global.ul
         [ listStyle none
@@ -356,12 +377,12 @@ globalStyling =
         [ fontSize (rem 0.875)
         , lineHeight (rem 1.5)
         , padding zero
-        , fontFamilies
-            [ "Iosevka SS08 Web"
-            , "monospace"
-            ]
+        , fontFamilies font.mono
         ]
-    , Global.p [ margin3 (rem 0.15) zero (rem 0.25) ]
+    , Global.p
+        [ margin3 (rem 0.15) zero (rem 0.25)
+        , fontSize (rem 1)
+        ]
     , Global.pre [ display none ]
     , Global.a
         [ textDecoration none
