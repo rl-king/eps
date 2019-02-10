@@ -5,6 +5,7 @@ import Browser.Navigation
 import Css exposing (..)
 import Css.Breakpoint as Breakpoint
 import Css.Global as Global exposing (global)
+import Html.Attributes
 import Html.Styled exposing (..)
 import Html.Styled.Attributes
     exposing
@@ -23,6 +24,7 @@ import Html.Styled.Keyed as Keyed
 import Http
 import Json.Decode as Decode
 import Markdown
+import ModularScale
 import String.Interpolate exposing (interpolate)
 import Url exposing (Url)
 
@@ -58,9 +60,9 @@ init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
     ( { key = key
       , searchResults = []
-      , searchTerm = "(a -> b) -> Maybe a -> Maybe b"
+      , searchTerm = "gaming"
       }
-    , requestSearchTerm "(a -> b) -> Maybe a -> Maybe b"
+    , requestSearchTerm "gaming"
     )
 
 
@@ -145,8 +147,14 @@ viewHeader model =
 
 viewResults : Model -> Html Msg
 viewResults model =
-    ul [ css styling.searchResults ] <|
-        List.map viewResult model.searchResults
+    section [ css styling.content ]
+        [ div [ css styling.sidebar ]
+            [ h2 [] [ text "packages" ]
+            , h2 [] [ text "modules" ]
+            ]
+        , ul [ css styling.searchResults ] <|
+            List.map viewResult model.searchResults
+        ]
 
 
 viewResult : SearchResult -> Html Msg
@@ -156,8 +164,8 @@ viewResult result =
             [ link ValueLink result [] [ viewResultSignature result ]
             ]
         , div [ css styling.searchResultBody ]
-            [ span [ css styling.searchResultDescription ]
-                [ fromUnstyled <| Markdown.toHtml [] result.valueComment ]
+            [ fromUnstyled <|
+                Markdown.toHtml [ Html.Attributes.class "markdown" ] result.valueComment
             , footer [ css styling.searchResultFooter ]
                 [ link PackageLink
                     result
@@ -226,6 +234,16 @@ link linkType { packageName, moduleName, valueName } attributes content =
 -- STYLING
 
 
+config : ModularScale.Config
+config =
+    ModularScale.config [ 1 ] ModularScale.MinorThird
+
+
+ms : Int -> Rem
+ms =
+    rem << ModularScale.get config
+
+
 colors =
     { lightGrey = hex "FAFAFA"
     , grey = hex "EEEEEE"
@@ -246,7 +264,7 @@ font =
         , "monospace"
         ]
     , text =
-        [ "Source Sans Pro"
+        [ "Helvetica Neue"
         , "-apple-system"
         , "BlinkMacSystemFont"
         , "Segoe UI"
@@ -256,7 +274,6 @@ font =
         , "Cantarell"
         , "Fira Sans"
         , "Droid Sans"
-        , "Helvetica Neue"
         , "sans-serif"
         ]
     }
@@ -268,7 +285,7 @@ styling =
         ]
     , title =
         [ fontWeight (int 500)
-        , fontSize (rem 1.25)
+        , fontSize (ms 1)
         , margin zero
         , height (rem 2)
         , position absolute
@@ -288,7 +305,7 @@ styling =
         [ width (rem 30)
         , border3 (px 1) solid colors.sandDarker
         , height (rem 2)
-        , fontSize (rem 1)
+        , fontSize (ms 1)
         , padding (rem 0.5)
         , property "-webkit-appearance" "none"
         , borderRadius (px 2)
@@ -298,38 +315,42 @@ styling =
             , padding2 (rem 0.15) (rem 0.5)
             ]
         ]
+    , content =
+        [ displayFlex
+        , maxWidth (rem 70)
+        , margin2 zero auto
+        , padding (rem 2)
+        ]
+    , sidebar =
+        [ width (rem 20)
+        ]
     , searchResults =
-        [ padding2 (rem 1) (rem 1)
-        , width (pct 100)
+        [ width (pct 100)
         ]
     , searchResult =
-        [ padding (rem 1)
-        , borderBottom3 (px 1) solid colors.grey
-        , marginBottom (rem 1)
-        , backgroundColor colors.sand
-        , maxWidth (rem 50)
+        [ marginBottom (rem 1)
         , width (pct 100)
         , borderRadius (px 2)
         ]
     , searchResultHeader =
-        []
-    , searchResultBody =
-        []
-    , searchResultDescription =
-        [ overflow hidden
-        , maxHeight (rem 3)
-        , display block
-        , margin2 (rem 0.5) zero
+        [ backgroundColor colors.sand
+        , height (ms 6)
+        , padding2 zero (rem 1)
+        , displayFlex
+        , alignItems center
         ]
+    , searchResultBody =
+        [ padding2 (rem 0.5) (rem 1) ]
     , searchResultFooter =
         [ fontFamilies font.mono
-        , fontSize (rem 0.875)
+        , fontSize (ms 0)
         , displayFlex
         , justifyContent spaceBetween
         , alignItems flexEnd
+        , marginTop (rem 1)
         ]
     , searchResultSignature =
-        [ fontSize (rem 1)
+        [ fontSize (ms 0)
         , color colors.red
         , fontWeight (int 500)
         ]
@@ -345,7 +366,7 @@ styling =
     , button =
         [ backgroundColor transparent
         , border zero
-        , fontSize (rem 1)
+        , fontSize (ms 1)
         , backgroundColor colors.darkGrey
         , color colors.white
         , height (rem 2)
@@ -361,12 +382,13 @@ globalStyling =
     , Global.html
         [ margin zero
         , padding zero
+        , fontSize (pct 87.5)
         ]
     , Global.body
         [ margin zero
         , padding zero
-        , fontSize (pct 87.5)
         , fontFamilies font.text
+        , fontSize (ms 1)
         ]
     , Global.ul
         [ listStyle none
@@ -374,14 +396,18 @@ globalStyling =
         , margin zero
         ]
     , Global.code
-        [ fontSize (rem 0.875)
-        , lineHeight (rem 1.5)
+        [ fontSize (ms 0)
+        , lineHeight (ms 2)
         , padding zero
         , fontFamilies font.mono
         ]
     , Global.p
         [ margin3 (rem 0.15) zero (rem 0.25)
-        , fontSize (rem 1)
+        ]
+    , Global.h2
+        [ margin3 (rem 0.15) zero (rem 0.25)
+        , fontSize (ms 1)
+        , fontWeight (int 400)
         ]
     , Global.pre [ display none ]
     , Global.a
@@ -394,6 +420,12 @@ globalStyling =
         , width (pct 100)
         , margin2 (rem 1) zero
         , display none
+        ]
+    , Global.class "markdown"
+        [ overflow hidden
+        , maxHeight (rem 3)
+        , display block
+        , fontSize (ms 0)
         ]
     ]
 
