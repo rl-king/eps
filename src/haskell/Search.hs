@@ -26,7 +26,7 @@ data Index =
   , valueNames :: Map (Text, Int) [SR.Result]
   , moduleNames :: Map (Text, Int) [SR.Result]
   , packageNames :: Map (Text, Int) [SR.Result]
-  , docs :: Map (Text, Int) [SR.Result]
+  , summaries :: Map (Text, Int) [SR.Result]
   , comments :: Map (Text, Int) [SR.Result]
   }
 
@@ -37,7 +37,7 @@ index packages = Index
   (Token.Name.tokenizeValueNames packages)
   (Token.Name.tokenizeModuleNames packages)
   (Token.Name.tokenizePackageNames packages)
-  (Token.Docs.tokenizeDocs packages)
+  (Token.Docs.tokenizeSummaries packages)
   (Token.Docs.tokenizeComments packages)
 
 
@@ -51,7 +51,7 @@ info index =
     vn = tl $ valueNames index
     mn = tl $ moduleNames index
     pn = tl $ packageNames index
-    d = tl $ docs index
+    d = tl $ summaries index
     c = tl $ comments index
   in
     do
@@ -60,7 +60,7 @@ info index =
       print $ show (length vn) ++ " : indexed value names"
       print $ show (length mn) ++ " : indexed module names"
       print $ show (length pn) ++ " : indexed package names"
-      print $ show (length d) ++ " : indexed docs"
+      print $ show (length d) ++ " : indexed summaries"
       print $ show (length c) ++ " : indexed comments"
 
 
@@ -68,7 +68,7 @@ info index =
 
 
 perform ::  Text -> Index -> [SR.Result]
-perform term Index{typeSignatures, valueNames, comments, docs} =
+perform term Index{typeSignatures, valueNames, comments, summaries} =
   let
     get selectedIndex acc termPart =
       case Map.lookup termPart selectedIndex of
