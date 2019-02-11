@@ -8,6 +8,7 @@
     * Examples
   * Does it have tests
   * Dependencies
+* Maybe add more endpoints with indexed information
 
 
 ## Getting started
