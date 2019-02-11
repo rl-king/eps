@@ -6,14 +6,13 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Token.Stemmer as Stem
 import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Text (Text)
 
 import Data.Package as Package
 import Data.Ref as Ref
-import Token.Util
+import qualified NLP.Stemmer as Stem
 
 
 
@@ -34,9 +33,9 @@ extractSummary :: Package -> [((Text, Int), [Ref.Ref])]
 extractSummary package@Package{summary} =
   let
     toPair word =
-      (word, [Ref.packageRef package])
+      ((word, 1), [Ref.packageRef package])
   in
-    List.map toPair . countOccurrences $ Stem.run $ filterStopWords (Text.words summary)
+    List.map toPair (toTokens summary)
 
 
 

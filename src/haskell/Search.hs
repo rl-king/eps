@@ -86,7 +86,12 @@ perform term Index{typeSignatures, valueNames, comments, summaries} =
     []
 
 
+data Strategy
+  = All
+  | TypeSigs
 
+
+strategy :: Text -> (Strategy, [])
 searchTypeSigs :: Text -> Bool
 searchTypeSigs term =
   (List.any (Char.isUpper . Text.head) $ Text.words term) ||

@@ -11,7 +11,6 @@ import Data.Text (Text)
 
 import Data.Package as Package
 import qualified Data.Ref as Ref
-import Token.Util
 
 
 
@@ -90,3 +89,8 @@ isReserved :: Text -> Bool
 isReserved type_ =
   List.any (\x -> Text.take (Text.length x) type_ == x)
   ["number", "comparable", "appendable", "compappend"]
+
+
+countOccurrences :: Ord a => [a] -> [(a, Int)]
+countOccurrences =
+  Map.toList . List.foldl (\acc k -> Map.insertWith (+) k 1 acc) Map.empty

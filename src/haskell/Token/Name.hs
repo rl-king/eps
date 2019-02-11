@@ -17,6 +17,40 @@ type Tokens =
   Map (Text, Int) [Ref.Ref]
 
 
+
+-- PACKAGE NAMES
+
+
+tokenizePackageNames :: [Package] -> Tokens
+tokenizePackageNames =
+  Map.fromListWith (++) . map extractPackageName
+
+
+extractPackageName :: Package -> ((Text, Int), [Ref.Ref])
+extractPackageName package@Package{packageName} =
+  ((pn, 1), [Ref.packageRef package])
+  where (_:pn:_) = Text.splitOn "/" packageName -- TODO: make total
+
+
+
+-- MODULE NAMES
+
+
+tokenizeModuleNames :: [Package] -> Tokens
+tokenizeModuleNames =
+  Map.fromListWith (++) . concatMap extractModuleName
+
+
+extractModuleName :: Package -> [((Text, Int), [Ref.Ref])]
+extractModuleName package@Package{modules} =
+  let
+    toKeyValuePairs module_@Module{moduleName} =
+      ((moduleName, 1), [Ref.moduleRef package module_])
+  in
+    List.map toKeyValuePairs modules
+
+
+
 -- VALUE NAMES
 
 
@@ -47,35 +81,3 @@ extractValueName package@Package{modules} =
       ((typeName, 1), [Ref.valueRef package module_ typeName])
   in
     List.foldl toKeyValuePairs [] modules
-
-
-
--- MODULE NAMES
-
-
-tokenizeModuleNames :: [Package] -> Tokens
-tokenizeModuleNames =
-  Map.fromListWith (++) . concatMap extractModuleName
-
-
-extractModuleName :: Package -> [((Text, Int), [Ref.Ref])]
-extractModuleName package@Package{modules} =
-  let
-    toKeyValuePairs module_@Module{moduleName} =
-      ((moduleName, 1), [Ref.moduleRef package module_])
-  in
-    List.map toKeyValuePairs modules
-
-
--- PACKAGE NAMES
-
-
-tokenizePackageNames :: [Package] -> Tokens
-tokenizePackageNames =
-  Map.fromListWith (++) . map extractPackageName
-
-
-extractPackageName :: Package -> ((Text, Int), [Ref.Ref])
-extractPackageName package@Package{packageName} =
-  ((pn, 1), [Ref.packageRef package])
-  where (_:pn:_) = Text.splitOn "/" packageName -- TODO: make total
