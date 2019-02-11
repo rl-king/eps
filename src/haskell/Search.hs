@@ -4,12 +4,10 @@ module Search where
 
 import qualified Data.Char as Char
 import qualified Data.List as List
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import Data.Text (Text)
 
 import qualified Search.Result
-import qualified Data.Ref as Ref
 import qualified Token.Docs as Docs
 import qualified Token.TypeSig as TypeSig
 import qualified Token.Name as Name
@@ -41,27 +39,28 @@ index packages = Index
   (Docs.tokenizeComments packages)
 
 
-info :: Index -> IO ()
-info index =
-  let
-    tl (TypeSig.Tokens m) = Map.toList $ Map.map length m
-    -- results = putStrLn . unlines . map show . take 50 . reverse
+-- info :: Index -> IO ()
+-- info index =
+--   let
+--     -- tl (TypeSig.Tokens m) = Map.toList $ Map.map length m
+--     -- results = putStrLn . unlines . map show . take 50 . reverse
 
-    ts = tl $ typeSignatures index
-    -- vn = tl $ valueNames index
-    -- mn = tl $ moduleNames index
-    -- pn = tl $ packageNames index
-    -- d = tl $ summaries index
-    -- c = tl $ comments index
-  in
-    do
-      -- mapM_ results [ts, vn, mn, pn, List.sortOn snd d, List.sortOn snd c]
-      print $ show (length ts) ++ " : indexed type signatures"
-      -- print $ show (length vn) ++ " : indexed value names"
-      -- print $ show (length mn) ++ " : indexed module names"
-      -- print $ show (length pn) ++ " : indexed package names"
-      -- print $ show (length d) ++ " : indexed summaries"
-      -- print $ show (length c) ++ " : indexed comments"
+--     -- ts = tl $ typeSignatures index
+--     -- vn = tl $ valueNames index
+--     -- mn = tl $ moduleNames index
+--     -- pn = tl $ packageNames index
+--     -- d = tl $ summaries index
+--     -- c = tl $ comments index
+--   in
+--     do
+--       -- mapM_ results [ts, vn, mn, pn, List.sortOn snd d, List.sortOn snd c]
+--       -- print $ show (length ts) ++ " : indexed type signatures"
+--       -- print $ show (length vn) ++ " : indexed value names"
+--       -- print $ show (length mn) ++ " : indexed module names"
+--       -- print $ show (length pn) ++ " : indexed package names"
+--       -- print $ show (length d) ++ " : indexed summaries"
+--       -- print $ show (length c) ++ " : indexed comments"
+
 
 
 -- SEARCHING
@@ -69,30 +68,33 @@ info index =
 
 perform :: Text -> Index -> [Search.Result.Result]
 perform term Index{typeSignatures, valueNames, comments, summaries} =
-  let
-    get selectedIndex acc termPart =
-      case Map.lookup termPart selectedIndex of
-        Just xs -> List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
-        Nothing -> acc
+    case strategy term of
+      TypeSigs ->
+        []
 
-    search terms selectedIndex =
-      List.map fst $ List.take 100 $ List.filter ((==) (length terms) . snd) $
-      Map.toList $ List.foldl (get selectedIndex) Map.empty terms
-  in
-    -- if searchTypeSigs term then
-    --   search (Token.TypeSig.typeSigToToken term) typeSignatures
-    -- else
-      -- search (List.map (\x -> (x, 1)) (Token.Docs.toTokens term)) comments
-    []
+      _ ->
+        []
+
+
+
+-- STRATEGY
 
 
 data Strategy
-  = All [TypeSig.Token] [Docs.Token] [Name.Token]
-  | TypeSigs [TypeSig.Token]
+  = All
+  | TypeSigs
+  | None
 
 
--- strategy :: Text -> (Strategy, [])
+strategy :: Text -> Strategy
+strategy term =
+  if searchTypeSigs term then
+    TypeSigs
+  else
+    None
+
+
 searchTypeSigs :: Text -> Bool
 searchTypeSigs term =
-  (List.any (Char.isUpper . Text.head) $ Text.words term) ||
-  (List.elem "->" $ Text.words term)
+  (List.any (Char.isUpper . Text.head) $ Text.words term)
+  || (List.elem "->" $ Text.words term)

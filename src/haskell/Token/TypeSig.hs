@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Token.TypeSig where
+module Token.TypeSig (Tokens, Token, query, tokenize) where
 
 import qualified Data.List as List
 import qualified Data.Char as Char
@@ -25,6 +25,24 @@ newtype Tokens =
 newtype Token =
   Token { token :: (Text, Int)}
   deriving (Eq, Ord, Show)
+
+
+
+-- QUERY
+
+
+query :: Text -> Tokens -> [Ref.Ref]
+query term (Tokens idx) =
+  List.map fst . List.take 30 . List.reverse . List.sortOn snd .
+  Map.toList $ List.foldl getTs Map.empty tokens
+  where
+    tokens = toTokens term
+    getTs acc termPart =
+      case Map.lookup termPart idx of
+        Nothing ->
+          acc
+        Just xs ->
+          List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
 
 
 
@@ -55,17 +73,17 @@ extract package@Package{modules} =
 
     toPair module_ typeName type_ =
       List.map (\x -> (x ,[Ref.valueRef package module_ typeName])) $
-      typeSigToToken type_
+      toTokens type_
   in
     List.foldl toKeyValuePairs [] modules
 
 
 {-|
-  typeSigToToken "(a -> Task x b) -> Task x a -> Task x b"
+  toTokens "(a -> Task x b) -> Task x a -> Task x b"
   --> [("->",3),("Task",3),("a",2),("b",3),("c",2)]
 -}
-typeSigToToken :: Text -> [Token]
-typeSigToToken =
+toTokens :: Text -> [Token]
+toTokens =
   let
     removeModules =
       List.map (last . Text.splitOn ".")

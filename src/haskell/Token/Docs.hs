@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Token.Docs where
+module Token.Docs
+  ( Tokens
+  , Token
+  , query
+  , tokenizeSummaries
+  , tokenizeComments
+  ) where
 
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -27,6 +33,15 @@ newtype Tokens =
 newtype Token =
   Token { token :: Text }
   deriving (Eq, Ord, Show)
+
+
+
+-- QUERY
+
+
+query :: Text -> Tokens -> [Ref.Ref]
+query term (Tokens idx) =
+  []
 
 
 
