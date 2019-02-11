@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeOperators #-}
 module Server where
 
-import qualified Data.Text as Text
+import Data.Text (Text)
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Gzip
@@ -17,7 +17,7 @@ import Data.Package
 
 
 type Api =
-  "search" :> QueryParam "term" String :> Get '[JSON] [SR.Result] :<|>
+  "search" :> QueryParam "term" Text :> Get '[JSON] [SR.Result] :<|>
   Raw
 
 
@@ -33,26 +33,26 @@ run packages = do
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
         defaultSettings
-  Search.info searchIndex
-  runSettings settings =<< mkApp packages searchIndex
+  -- Search.info searchIndex
+  runSettings settings =<< mkApp searchIndex
 
 
-mkApp :: [Package] -> Search.Index -> IO Application
-mkApp packages searchIndex =
+mkApp :: Search.Index -> IO Application
+mkApp searchIndex =
   return . gzip def { gzipFiles = GzipCompress } . serve api $
-  server packages searchIndex
+  server searchIndex
 
 
-server :: [Package] -> Search.Index -> Server Api
-server packages searchIndex =
+server :: Search.Index -> Server Api
+server searchIndex =
   searchPackages searchIndex :<|>
   serveDirectoryFileServer "./"
 
 
-searchPackages :: Search.Index -> Maybe String -> Handler [SR.Result]
+searchPackages :: Search.Index -> Maybe Text -> Handler [SR.Result]
 searchPackages searchIndex queryParam =
   case queryParam of
     Just term ->
-      return $ Search.perform (Text.pack term) searchIndex
+      return $ Search.perform term searchIndex
     Nothing ->
       return []
