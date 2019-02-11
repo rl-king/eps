@@ -5,7 +5,6 @@ import Data.Aeson as Aeson
 import Data.Text (Text)
 
 
-
 -- DEFINITIONS
 
 

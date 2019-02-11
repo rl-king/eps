@@ -12,29 +12,29 @@ import Data.Set (Set)
 import Data.Text (Text)
 
 import Data.Package as Package
+import Data.Ref as Ref
 import Token.Util
-import qualified Search.Result as SR
 
 
 
 type Tokens =
-  Map (Text, Int) [SR.Result]
+  Map (Text, Int) [Ref.Ref]
 
 
 -- DOCS
 
 
-tokenizeDocs :: [Package] -> Tokens
-tokenizeDocs =
-  Map.filter ((>) 400 . length) .
+tokenizeSummaries :: [Package] -> Tokens
+tokenizeSummaries =
+  -- Map.filter ((>) 400 . length) .
   Map.fromListWith (++) . concatMap extractSummary
 
 
-extractSummary :: Package -> [((Text, Int), [SR.Result])]
-extractSummary Package{packageName, summary} =
+extractSummary :: Package -> [((Text, Int), [Ref.Ref])]
+extractSummary package@Package{summary} =
   let
     toPair word =
-      (word, [SR.Result SR.Value packageName "" "" "" ""])
+      (word, [Ref.packageRef package])
   in
     List.map toPair . countOccurrences $ Stem.run $ filterStopWords (Text.words summary)
 
@@ -45,37 +45,36 @@ extractSummary Package{packageName, summary} =
 
 tokenizeComments :: [Package] -> Tokens
 tokenizeComments =
-  Map.filter ((>) 400 . length) .
+  -- Map.filter ((>) 400 . length) .
   Map.fromListWith (++) . concatMap extractComments
 
 
-extractComments :: Package -> [((Text, Int), [SR.Result])]
-extractComments Package{packageName, modules} =
+extractComments :: Package -> [((Text, Int), [Ref.Ref])]
+extractComments package@Package{modules} =
   let
-    toComments acc Module{moduleName, comment, customTypes, values, binops, aliases} =
-      toPair comment moduleName "" :
-      List.map (valueComment moduleName) values ++
-      List.map (binopComment moduleName) binops ++
-      List.map (customTypeComment moduleName) customTypes ++
-      List.map (aliasesComment moduleName) aliases ++ acc
+    toComments acc module_@Module{customTypes, values, binops, aliases} =
+      List.map (valueComment module_) values ++
+      List.map (binopComment module_) binops ++
+      List.map (customTypeComment module_) customTypes ++
+      List.map (aliasesComment module_) aliases ++ acc
 
-    valueComment mn (Value_ typeName comment _) =
-      toPair mn typeName comment
+    valueComment module_ (Value_ typeName comment _) =
+      toPair module_ typeName comment
 
-    binopComment mn (Binop typeName comment _) =
-      toPair mn typeName comment
+    binopComment module_ (Binop typeName comment _) =
+      toPair module_ typeName comment
 
-    customTypeComment mn (CustomType typeName comment _ _) =
-      toPair mn typeName comment
+    customTypeComment module_ (CustomType typeName comment _ _) =
+      toPair module_ typeName comment
 
-    aliasesComment mn (TypeAlias typeName comment _ _) =
-      toPair mn typeName comment
+    aliasesComment module_ (TypeAlias typeName comment _ _) =
+      toPair module_ typeName comment
 
-    toPair moduleName typeName comment =
-      List.map (toPair_ moduleName typeName comment) (toTokens comment)
+    toPair module_ typeName comment =
+      List.map (toPair_ module_ typeName) (toTokens comment)
 
-    toPair_ moduleName typeName c x =
-      ((x, 1), [SR.Result SR.Value packageName moduleName typeName c ""])
+    toPair_ module_ typeName token =
+      ((token, 1), [Ref.valueRef package module_ typeName])
   in
     concat $ List.foldl toComments [] modules
 

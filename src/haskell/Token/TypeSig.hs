@@ -10,13 +10,13 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
+import qualified Data.Ref as Ref
 import Token.Util
-import qualified Search.Result as SR
 
 
 
 type Tokens =
-  Map (Text, Int) [SR.Result]
+  Map (Text, Int) [Ref.Ref]
 
 
 tokenize :: [Package] -> Tokens
@@ -24,27 +24,26 @@ tokenize =
   Map.fromListWith (++) . concatMap extract
 
 
-extract :: Package -> [((Text, Int), [SR.Result])]
-extract Package{packageName, modules} =
+extract :: Package -> [((Text, Int), [Ref.Ref])]
+extract package@Package{modules} =
   let
-    toKeyValuePairs acc Module{moduleName, values, binops, aliases} =
-      List.concatMap (valueToPair moduleName) values ++
-      List.concatMap (aliasesToPair moduleName) aliases ++
-      List.concatMap (binopToPair moduleName) binops ++ acc
+    toKeyValuePairs acc module_@Module{values, binops, aliases} =
+      List.concatMap (valueToPair module_) values ++
+      List.concatMap (aliasesToPair module_) aliases ++
+      List.concatMap (binopToPair module_) binops ++ acc
 
-    aliasesToPair moduleName (TypeAlias typeName comment _ type_) =
-      toPair moduleName typeName comment type_
+    aliasesToPair module_ (TypeAlias typeName _ _ type_) =
+      toPair module_ typeName type_
 
-    binopToPair moduleName (Binop typeName comment type_) =
-      toPair moduleName typeName comment type_
+    binopToPair module_ (Binop typeName _ type_) =
+      toPair module_ typeName type_
 
-    valueToPair moduleName (Value_ typeName comment type_) =
-      toPair moduleName typeName comment type_
+    valueToPair module_ (Value_ typeName _ type_) =
+      toPair module_ typeName type_
 
-    toPair moduleName typeName comment type_ =
-      List.map (\x -> (x ,[SR.Result SR.Value packageName moduleName typeName comment type_])) $
+    toPair module_ typeName type_ =
+      List.map (\x -> (x ,[Ref.valueRef package module_ typeName])) $
       typeSigToToken type_
-
   in
     List.foldl toKeyValuePairs [] modules
 

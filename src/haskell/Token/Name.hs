@@ -9,12 +9,12 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
-import qualified Search.Result as SR
+import qualified Data.Ref as Ref
 
 
 
 type Tokens =
-  Map (Text, Int) [SR.Result]
+  Map (Text, Int) [Ref.Ref]
 
 
 -- VALUE NAMES
@@ -25,26 +25,26 @@ tokenizeValueNames =
   Map.fromListWith (++) . concatMap extractValueName
 
 
-extractValueName :: Package -> [((Text, Int), [SR.Result])]
-extractValueName Package{packageName, modules} =
+extractValueName :: Package -> [((Text, Int), [Ref.Ref])]
+extractValueName package@Package{modules} =
   let
-    toKeyValuePairs acc Module{moduleName, values, binops, aliases} =
-      List.map (valueToPair moduleName) values ++
-      List.map (aliasesToPair moduleName) aliases ++
-      List.map (binopToPair moduleName) binops ++
+    toKeyValuePairs acc module_@Module{values, binops, aliases} =
+      List.map (valueToPair module_) values ++
+      List.map (aliasesToPair module_) aliases ++
+      List.map (binopToPair module_) binops ++
       acc
 
-    aliasesToPair moduleName (TypeAlias typeName comment _ type_) =
-      toPair moduleName typeName comment type_
+    aliasesToPair module_ (TypeAlias typeName _ _ _) =
+      toPair module_ typeName
 
-    binopToPair moduleName (Binop typeName comment type_) =
-      toPair moduleName typeName comment type_
+    binopToPair module_ (Binop typeName _ _) =
+      toPair module_ typeName
 
-    valueToPair moduleName (Value_ typeName comment type_) =
-      toPair moduleName typeName comment type_
+    valueToPair module_ (Value_ typeName _ _) =
+      toPair module_ typeName
 
-    toPair moduleName typeName comment type_ =
-      ((typeName, 1), [SR.Result SR.Value packageName moduleName typeName comment type_])
+    toPair module_ typeName =
+      ((typeName, 1), [Ref.valueRef package module_ typeName])
   in
     List.foldl toKeyValuePairs [] modules
 
@@ -58,11 +58,11 @@ tokenizeModuleNames =
   Map.fromListWith (++) . concatMap extractModuleName
 
 
-extractModuleName :: Package -> [((Text, Int), [SR.Result])]
-extractModuleName Package{packageName, modules} =
+extractModuleName :: Package -> [((Text, Int), [Ref.Ref])]
+extractModuleName package@Package{modules} =
   let
-    toKeyValuePairs Module{moduleName} =
-      ((moduleName, 1), [SR.Result SR.Value packageName moduleName "" "" ""])
+    toKeyValuePairs module_@Module{moduleName} =
+      ((moduleName, 1), [Ref.moduleRef package module_])
   in
     List.map toKeyValuePairs modules
 
@@ -75,7 +75,7 @@ tokenizePackageNames =
   Map.fromListWith (++) . map extractPackageName
 
 
-extractPackageName :: Package -> ((Text, Int), [SR.Result])
-extractPackageName Package{packageName} =
-  ((pn, 1), [SR.Result SR.Value pn "" "" "" ""])
+extractPackageName :: Package -> ((Text, Int), [Ref.Ref])
+extractPackageName package@Package{packageName} =
+  ((pn, 1), [Ref.packageRef package])
   where (_:pn:_) = Text.splitOn "/" packageName -- TODO: make total

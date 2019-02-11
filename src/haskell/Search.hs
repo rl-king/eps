@@ -6,10 +6,10 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
-import Data.Map.Strict (Map)
 import Data.Text (Text)
 
-import qualified Search.Result as SR
+import qualified Search.Result
+import qualified Data.Ref as Ref
 import qualified Token.Docs
 import qualified Token.TypeSig
 import qualified Token.Name
@@ -22,12 +22,12 @@ import Data.Package (Package)
 
 data Index =
   Index
-  { typeSignatures :: Map (Text, Int) [SR.Result]
-  , valueNames :: Map (Text, Int) [SR.Result]
-  , moduleNames :: Map (Text, Int) [SR.Result]
-  , packageNames :: Map (Text, Int) [SR.Result]
-  , summaries :: Map (Text, Int) [SR.Result]
-  , comments :: Map (Text, Int) [SR.Result]
+  { typeSignatures :: Token.TypeSig.Tokens
+  , valueNames :: Token.Name.Tokens
+  , moduleNames :: Token.Name.Tokens
+  , packageNames :: Token.Name.Tokens
+  , summaries :: Token.Docs.Tokens
+  , comments :: Token.Docs.Tokens
   }
 
 
@@ -67,7 +67,7 @@ info index =
 -- SEARCHING
 
 
-perform ::  Text -> Index -> [SR.Result]
+perform :: Text -> Index -> [Search.Result.Result]
 perform term Index{typeSignatures, valueNames, comments, summaries} =
   let
     get selectedIndex acc termPart =
@@ -82,7 +82,8 @@ perform term Index{typeSignatures, valueNames, comments, summaries} =
     -- if searchTypeSigs term then
     --   search (Token.TypeSig.typeSigToToken term) typeSignatures
     -- else
-      search (List.map (\x -> (x, 1)) (Token.Docs.toTokens term)) comments
+      -- search (List.map (\x -> (x, 1)) (Token.Docs.toTokens term)) comments
+    []
 
 
 
