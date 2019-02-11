@@ -10,6 +10,7 @@ data Ref
   = PackageRef Text
   | ModuleRef Text Text
   | ValueRef Text Text Text
+  deriving (Show)
 
 
 packageRef :: Package -> Ref

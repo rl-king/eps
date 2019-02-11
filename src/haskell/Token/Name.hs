@@ -12,9 +12,17 @@ import Data.Package as Package
 import qualified Data.Ref as Ref
 
 
+-- DEFINITIONS
 
-type Tokens =
-  Map (Text, Int) [Ref.Ref]
+
+newtype Tokens =
+  Tokens { tokens :: Map Token [Ref.Ref] }
+  deriving (Show)
+
+
+newtype Token =
+  Token { token :: Text }
+  deriving (Eq, Ord, Show)
 
 
 
@@ -23,13 +31,17 @@ type Tokens =
 
 tokenizePackageNames :: [Package] -> Tokens
 tokenizePackageNames =
-  Map.fromListWith (++) . map extractPackageName
+  Tokens . Map.fromListWith (++) . map extractPackageName
 
 
-extractPackageName :: Package -> ((Text, Int), [Ref.Ref])
+extractPackageName :: Package -> (Token, [Ref.Ref])
 extractPackageName package@Package{packageName} =
-  ((pn, 1), [Ref.packageRef package])
-  where (_:pn:_) = Text.splitOn "/" packageName -- TODO: make total
+  case Text.splitOn "/" packageName of
+    _:name:_ ->
+      (Token name, [Ref.packageRef package])
+
+    _ ->
+      (Token packageName, [Ref.packageRef package]) -- Kinda weird, maybe filtermap instead
 
 
 
@@ -38,14 +50,14 @@ extractPackageName package@Package{packageName} =
 
 tokenizeModuleNames :: [Package] -> Tokens
 tokenizeModuleNames =
-  Map.fromListWith (++) . concatMap extractModuleName
+  Tokens . Map.fromListWith (++) . concatMap extractModuleName
 
 
-extractModuleName :: Package -> [((Text, Int), [Ref.Ref])]
+extractModuleName :: Package -> [(Token, [Ref.Ref])]
 extractModuleName package@Package{modules} =
   let
     toKeyValuePairs module_@Module{moduleName} =
-      ((moduleName, 1), [Ref.moduleRef package module_])
+      (Token moduleName, [Ref.moduleRef package module_])
   in
     List.map toKeyValuePairs modules
 
@@ -56,10 +68,10 @@ extractModuleName package@Package{modules} =
 
 tokenizeValueNames :: [Package] -> Tokens
 tokenizeValueNames =
-  Map.fromListWith (++) . concatMap extractValueName
+  Tokens . Map.fromListWith (++) . concatMap extractValueName
 
 
-extractValueName :: Package -> [((Text, Int), [Ref.Ref])]
+extractValueName :: Package -> [(Token, [Ref.Ref])]
 extractValueName package@Package{modules} =
   let
     toKeyValuePairs acc module_@Module{values, binops, aliases} =
@@ -78,6 +90,6 @@ extractValueName package@Package{modules} =
       toPair module_ typeName
 
     toPair module_ typeName =
-      ((typeName, 1), [Ref.valueRef package module_ typeName])
+      (Token typeName, [Ref.valueRef package module_ typeName])
   in
     List.foldl toKeyValuePairs [] modules

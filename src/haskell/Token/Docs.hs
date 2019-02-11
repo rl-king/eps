@@ -16,8 +16,18 @@ import qualified NLP.Stemmer as Stem
 
 
 
-type Tokens =
-  Map (Text, Int) [Ref.Ref]
+-- DEFINITIONS
+
+
+newtype Tokens =
+  Tokens { tokens :: Map Token [Ref.Ref] }
+  deriving (Show)
+
+
+newtype Token =
+  Token { token :: Text }
+  deriving (Eq, Ord, Show)
+
 
 
 -- DOCS
@@ -26,14 +36,14 @@ type Tokens =
 tokenizeSummaries :: [Package] -> Tokens
 tokenizeSummaries =
   -- Map.filter ((>) 400 . length) .
-  Map.fromListWith (++) . concatMap extractSummary
+  Tokens . Map.fromListWith (++) . concatMap extractSummary
 
 
-extractSummary :: Package -> [((Text, Int), [Ref.Ref])]
+extractSummary :: Package -> [(Token, [Ref.Ref])]
 extractSummary package@Package{summary} =
   let
-    toPair word =
-      ((word, 1), [Ref.packageRef package])
+    toPair token =
+      (token, [Ref.packageRef package])
   in
     List.map toPair (toTokens summary)
 
@@ -45,10 +55,10 @@ extractSummary package@Package{summary} =
 tokenizeComments :: [Package] -> Tokens
 tokenizeComments =
   -- Map.filter ((>) 400 . length) .
-  Map.fromListWith (++) . concatMap extractComments
+  Tokens . Map.fromListWith (++) . concatMap extractComments
 
 
-extractComments :: Package -> [((Text, Int), [Ref.Ref])]
+extractComments :: Package -> [(Token, [Ref.Ref])]
 extractComments package@Package{modules} =
   let
     toComments acc module_@Module{customTypes, values, binops, aliases} =
@@ -73,23 +83,23 @@ extractComments package@Package{modules} =
       List.map (toPair_ module_ typeName) (toTokens comment)
 
     toPair_ module_ typeName token =
-      ((token, 1), [Ref.valueRef package module_ typeName])
+      (token, [Ref.valueRef package module_ typeName])
   in
     concat $ List.foldl toComments [] modules
 
 
 
--- HELPERS
+-- TOKENIZATION
 
 
-toTokens :: Text -> [Text]
+toTokens :: Text -> [Token]
 toTokens =
-  List.nub . Stem.run . filterStopWords . Text.words . Text.toLower .
-  Text.filter (not . flip Set.member cleanUpChars)
+  List.map Token . List.nub . Stem.run . filterStopWords . Text.words . Text.toLower .
+  Text.filter (not . flip Set.member filterPunctuation)
 
 
-cleanUpChars :: Set Char
-cleanUpChars =
+filterPunctuation :: Set Char
+filterPunctuation =
   Set.fromList [ '.' , ',']
 
 

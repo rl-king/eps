@@ -14,16 +14,29 @@ import qualified Data.Ref as Ref
 
 
 
-type Tokens =
-  Map (Text, Int) [Ref.Ref]
+-- DEFINITIONS
+
+
+newtype Tokens =
+  Tokens { tokens :: Map Token [Ref.Ref] }
+  deriving (Show)
+
+
+newtype Token =
+  Token { token :: (Text, Int)}
+  deriving (Eq, Ord, Show)
+
+
+
+-- FUNCTION SIGNATURES
 
 
 tokenize :: [Package] -> Tokens
 tokenize =
-  Map.fromListWith (++) . concatMap extract
+  Tokens . Map.fromListWith (++) . concatMap extract
 
 
-extract :: Package -> [((Text, Int), [Ref.Ref])]
+extract :: Package -> [(Token, [Ref.Ref])]
 extract package@Package{modules} =
   let
     toKeyValuePairs acc module_@Module{values, binops, aliases} =
@@ -51,7 +64,7 @@ extract package@Package{modules} =
   typeSigToToken "(a -> Task x b) -> Task x a -> Task x b"
   --> [("->",3),("Task",3),("a",2),("b",3),("c",2)]
 -}
-typeSigToToken :: Text -> [(Text, Int)]
+typeSigToToken :: Text -> [Token]
 typeSigToToken =
   let
     removeModules =
@@ -60,7 +73,9 @@ typeSigToToken =
     removeChars =
       Text.filter (not . flip elem ['(', ')', ',' , '}', '{'])
   in
-    countOccurrences . removeModules . simplifyTypeVariables . Text.words . removeChars
+    List.map Token . countOccurrences . removeModules .
+    simplifyTypeVariables . Text.words . removeChars
+
 
 
 {-|
