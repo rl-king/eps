@@ -10,9 +10,9 @@ import Data.Text (Text)
 
 import qualified Search.Result
 import qualified Data.Ref as Ref
-import qualified Token.Docs
-import qualified Token.TypeSig
-import qualified Token.Name
+import qualified Token.Docs as Docs
+import qualified Token.TypeSig as TypeSig
+import qualified Token.Name as Name
 import Data.Package (Package)
 
 
@@ -22,46 +22,46 @@ import Data.Package (Package)
 
 data Index =
   Index
-  { typeSignatures :: Token.TypeSig.Tokens
-  , valueNames :: Token.Name.Tokens
-  , moduleNames :: Token.Name.Tokens
-  , packageNames :: Token.Name.Tokens
-  , summaries :: Token.Docs.Tokens
-  , comments :: Token.Docs.Tokens
+  { typeSignatures :: TypeSig.Tokens
+  , valueNames :: Name.Tokens
+  , moduleNames :: Name.Tokens
+  , packageNames :: Name.Tokens
+  , summaries :: Docs.Tokens
+  , comments :: Docs.Tokens
   }
 
 
 index :: [Package] -> Index
 index packages = Index
-  (Token.TypeSig.tokenize packages)
-  (Token.Name.tokenizeValueNames packages)
-  (Token.Name.tokenizeModuleNames packages)
-  (Token.Name.tokenizePackageNames packages)
-  (Token.Docs.tokenizeSummaries packages)
-  (Token.Docs.tokenizeComments packages)
+  (TypeSig.tokenize packages)
+  (Name.tokenizeValueNames packages)
+  (Name.tokenizeModuleNames packages)
+  (Name.tokenizePackageNames packages)
+  (Docs.tokenizeSummaries packages)
+  (Docs.tokenizeComments packages)
 
 
 info :: Index -> IO ()
 info index =
   let
-    tl = Map.toList . Map.map length
-    results = putStrLn . unlines . map show . take 50 . reverse
+    tl (TypeSig.Tokens m) = Map.toList $ Map.map length m
+    -- results = putStrLn . unlines . map show . take 50 . reverse
 
     ts = tl $ typeSignatures index
-    vn = tl $ valueNames index
-    mn = tl $ moduleNames index
-    pn = tl $ packageNames index
-    d = tl $ summaries index
-    c = tl $ comments index
+    -- vn = tl $ valueNames index
+    -- mn = tl $ moduleNames index
+    -- pn = tl $ packageNames index
+    -- d = tl $ summaries index
+    -- c = tl $ comments index
   in
     do
-      mapM_ results [ts, vn, mn, pn, List.sortOn snd d, List.sortOn snd c]
+      -- mapM_ results [ts, vn, mn, pn, List.sortOn snd d, List.sortOn snd c]
       print $ show (length ts) ++ " : indexed type signatures"
-      print $ show (length vn) ++ " : indexed value names"
-      print $ show (length mn) ++ " : indexed module names"
-      print $ show (length pn) ++ " : indexed package names"
-      print $ show (length d) ++ " : indexed summaries"
-      print $ show (length c) ++ " : indexed comments"
+      -- print $ show (length vn) ++ " : indexed value names"
+      -- print $ show (length mn) ++ " : indexed module names"
+      -- print $ show (length pn) ++ " : indexed package names"
+      -- print $ show (length d) ++ " : indexed summaries"
+      -- print $ show (length c) ++ " : indexed comments"
 
 
 -- SEARCHING
@@ -87,11 +87,11 @@ perform term Index{typeSignatures, valueNames, comments, summaries} =
 
 
 data Strategy
-  = All
-  | TypeSigs
+  = All [TypeSig.Token] [Docs.Token] [Name.Token]
+  | TypeSigs [TypeSig.Token]
 
 
-strategy :: Text -> (Strategy, [])
+-- strategy :: Text -> (Strategy, [])
 searchTypeSigs :: Text -> Bool
 searchTypeSigs term =
   (List.any (Char.isUpper . Text.head) $ Text.words term) ||
