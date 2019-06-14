@@ -8,6 +8,7 @@ import qualified Data.Text as Text
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import Data.Aeson as Aeson
+import Data.Maybe
 
 import Data.Package
 import Server
@@ -38,17 +39,13 @@ main = do
 readPackageList :: IO [Package]
 readPackageList = do
   file <- LBS.readFile "./cache/search.json"
-  case Aeson.decode file :: Maybe [Package] of
-    Just xs -> return xs
-    Nothing -> return []
+  return $ fromMaybe [] $ Aeson.decode file
 
 
 fetchPackagesList :: IO [Package]
 fetchPackagesList = do
   response <- request "https://package.elm-lang.org/search.json"
-  case Aeson.decode (Http.responseBody response) :: Maybe [Package] of
-    Just xs -> return xs
-    Nothing -> return []
+  return $ fromMaybe [] $ Aeson.decode (Http.responseBody response)
 
 
 -- DOCS IO
@@ -57,9 +54,7 @@ fetchPackagesList = do
 readPackageDocs :: IO [Package]
 readPackageDocs = do
   file <- LBS.readFile "./cache/all.json"
-  case Aeson.decode file :: Maybe [Package] of
-    Just xs -> return xs
-    Nothing -> return []
+  return $ fromMaybe [] $ Aeson.decode file
 
 
 getPackageDocs :: Package -> IO Package
