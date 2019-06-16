@@ -22,12 +22,10 @@ main :: IO ()
 main = do
   -- Load search.json
   packageList <- catch readPackageList (ignoreException fetchPackagesList)
-  LBS.writeFile "./cache/search.json" (encode packageList)
 
   -- Load all.json
   packageListWithDocs <- catch readPackageDocs
-    (ignoreException $ mapM getPackageDocs packageList)
-  LBS.writeFile "./cache/all.json" (encode packageListWithDocs)
+    (ignoreException $ addPackagesModules (take 20 packageList))
 
   -- Serve "/" "/search" "/search?term="
   Server.run packageListWithDocs
@@ -45,7 +43,9 @@ readPackageList = do
 fetchPackagesList :: IO [Package]
 fetchPackagesList = do
   response <- request "https://package.elm-lang.org/search.json"
-  return $ fromMaybe [] $ Aeson.decode (Http.responseBody response)
+  let packages = fromMaybe [] $ Aeson.decode (Http.responseBody response)
+  LBS.writeFile "./cache/search.json" (encode packages)
+  return packages
 
 
 -- DOCS IO
@@ -57,12 +57,17 @@ readPackageDocs = do
   return $ fromMaybe [] $ Aeson.decode file
 
 
-getPackageDocs :: Package -> IO Package
-getPackageDocs package = do
-  response <- request (toLatestVersionDocUrl package)
-  case Aeson.decode (Http.responseBody response) :: Maybe [Module] of
-    Just xs -> return (package {modules = xs})
-    Nothing -> return package
+addPackagesModules :: [Package] -> IO [Package]
+addPackagesModules packages = do
+  response <- mapM (request . toLatestVersionDocUrl) packages
+  let withModules = zipWith addModules response packages
+  LBS.writeFile "./cache/all.json" (encode withModules)
+  return withModules
+  where
+    addModules maybeModules package =
+      case Aeson.decode (Http.responseBody maybeModules) :: Maybe [Module] of
+        Just xs -> package {modules = xs}
+        Nothing -> package
 
 
 toLatestVersionDocUrl :: Package -> String
