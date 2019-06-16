@@ -109,12 +109,17 @@ extractComments package@Package{modules} =
 
 toTokens :: Text -> [Token]
 toTokens =
-  List.map Token . List.nub . Stem.run . filterStopWords . Text.words . Text.toLower .
-  Text.filter (not . flip Set.member filterPunctuation)
+  List.map Token . List.nub . Stem.run . filterStopWords .
+  Text.words . Text.toLower . filterPunctuation
 
 
-filterPunctuation :: Set Char
+filterPunctuation :: Text -> Text
 filterPunctuation =
+  Text.filter (not . flip Set.member punctuation)
+
+
+punctuation  :: Set Char
+punctuation =
   Set.fromList [ '.' , ',']
 
 
