@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Search.Result where
 
 import Data.Aeson as Aeson hiding (Result)
 import Data.Text (Text)
-import GHC.Generics
+import GHC.Generics hiding (moduleName)
+import qualified Data.Package
 
 
 
@@ -27,3 +29,8 @@ data Category =
 
 
 instance Aeson.ToJSON Category
+
+
+fromPackage :: Data.Package.Package -> Result
+fromPackage package =
+  Result Package (Data.Package.packageName package) "" "" "" ""

@@ -5,13 +5,15 @@ module Search where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Text as Text
+import Data.Map.Strict (Map)
 import Data.Text (Text)
 
-import qualified Search.Result
+import Search.Result as Search
 import qualified Token.Docs as Docs
 import qualified Token.TypeSig as TypeSig
 import qualified Token.Name as Name
 import Data.Package (Package)
+import Data.Ref as Ref
 
 
 
@@ -66,14 +68,15 @@ index packages = Index
 -- SEARCHING
 
 
-perform :: Text -> Index -> [Search.Result.Result]
-perform term Index{typeSignatures, valueNames, comments, summaries} =
-    case strategy term of
-      TypeSigs ->
-        []
+perform :: Text -> Map Text Package -> Index -> [Search.Result]
+perform term packages Index{typeSignatures, valueNames, comments, summaries} =
+    -- case strategy term of
+    --   TypeSigs ->
+        fmap Search.fromPackage $ Ref.toPackages packages $
+        TypeSig.query term typeSignatures
 
-      _ ->
-        []
+      -- _ ->
+      --   []
 
 
 

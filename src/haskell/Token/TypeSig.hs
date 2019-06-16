@@ -5,6 +5,7 @@ module Token.TypeSig (Tokens, Token, query, tokenize) where
 import qualified Data.List as List
 import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
+import qualified Data.Ord
 import qualified Data.Text as Text
 import Data.Map.Strict (Map)
 import Data.Text (Text)
@@ -33,7 +34,7 @@ newtype Token =
 
 query :: Text -> Tokens -> [Ref.Ref]
 query term (Tokens idx) =
-  List.map fst . List.take 30 . List.reverse . List.sortOn snd .
+  List.map fst . List.take 30 . List.sortOn (Data.Ord.Down . snd) .
   Map.toList $ List.foldl getTs Map.empty tokens
   where
     tokens = toTokens term
