@@ -11,15 +11,15 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
-import qualified Data.Ref as Ref
-
+import qualified Search.ResultInfo as ResultInfo
+import Search.ResultInfo (ResultInfo)
 
 
 -- DEFINITIONS
 
 
 newtype Tokens =
-  Tokens { tokens :: Map Token [Ref.Ref] }
+  Tokens { tokens :: Map Token [ResultInfo] }
   deriving (Show)
 
 
@@ -32,7 +32,7 @@ newtype Token =
 -- QUERY
 
 
-query :: Text -> Tokens -> [Ref.Ref]
+query :: Text -> Tokens -> [ResultInfo]
 query term (Tokens idx) =
   List.map fst . List.take 30 . List.sortOn (Data.Ord.Down . snd) .
   Map.toList $ List.foldl getTs Map.empty tokens
@@ -55,7 +55,7 @@ tokenize =
   Tokens . Map.fromListWith (++) . concatMap extract
 
 
-extract :: Package -> [(Token, [Ref.Ref])]
+extract :: Package -> [(Token, [ResultInfo])]
 extract package@Package{modules} =
   let
     toKeyValuePairs acc module_@Module{values, binops, aliases} =
@@ -73,7 +73,7 @@ extract package@Package{modules} =
       toPair module_ typeName type_
 
     toPair module_ typeName type_ =
-      List.map (\x -> (x ,[Ref.valueRef package module_ typeName])) $
+      List.map (\x -> (x ,[ResultInfo.valueRef package module_ typeName])) $
       toTokens type_
   in
     List.foldl toKeyValuePairs [] modules

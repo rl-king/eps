@@ -13,7 +13,8 @@ import qualified Token.Docs as Docs
 import qualified Token.TypeSig as TypeSig
 import qualified Token.Name as Name
 import Data.Package (Package)
-import Data.Ref as Ref
+import qualified Search.ResultInfo as ResultInfo
+import Search.ResultInfo (ResultInfo)
 
 
 
@@ -72,7 +73,7 @@ perform :: Text -> Map Text Package -> Index -> [Search.Result]
 perform term packages Index{typeSignatures, valueNames, comments, summaries} =
     -- case strategy term of
     --   TypeSigs ->
-        fmap Search.fromPackage $ Ref.toPackages packages $
+        fmap Search.fromPackage $ ResultInfo.toPackages packages $
         TypeSig.query term typeSignatures
 
       -- _ ->

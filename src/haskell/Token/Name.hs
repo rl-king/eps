@@ -16,7 +16,8 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
-import qualified Data.Ref as Ref
+import qualified Search.ResultInfo as ResultInfo
+import Search.ResultInfo (ResultInfo)
 
 
 
@@ -24,7 +25,7 @@ import qualified Data.Ref as Ref
 
 
 newtype Tokens =
-  Tokens { tokens :: Map Token [Ref.Ref] }
+  Tokens { tokens :: Map Token [ResultInfo] }
   deriving (Show)
 
 
@@ -37,7 +38,7 @@ newtype Token =
 -- QUERY
 
 
-query :: Text -> Tokens -> [Ref.Ref]
+query :: Text -> Tokens -> [ResultInfo]
 query term (Tokens idx) =
   []
 
@@ -51,14 +52,14 @@ tokenizePackageNames =
   Tokens . Map.fromListWith (++) . map extractPackageName
 
 
-extractPackageName :: Package -> (Token, [Ref.Ref])
+extractPackageName :: Package -> (Token, [ResultInfo])
 extractPackageName package@Package{packageName} =
   case Text.splitOn "/" packageName of
     _:name:_ ->
-      (Token name, [Ref.packageRef package])
+      (Token name, [ResultInfo.packageRef package])
 
     _ ->
-      (Token packageName, [Ref.packageRef package]) -- Kinda weird, maybe filtermap instead
+      (Token packageName, [ResultInfo.packageRef package]) -- Kinda weird, maybe filtermap instead
 
 
 
@@ -70,11 +71,11 @@ tokenizeModuleNames =
   Tokens . Map.fromListWith (++) . concatMap extractModuleName
 
 
-extractModuleName :: Package -> [(Token, [Ref.Ref])]
+extractModuleName :: Package -> [(Token, [ResultInfo])]
 extractModuleName package@Package{modules} =
   let
     toKeyValuePairs module_@Module{moduleName} =
-      (Token moduleName, [Ref.moduleRef package module_])
+      (Token moduleName, [ResultInfo.moduleRef package module_])
   in
     List.map toKeyValuePairs modules
 
@@ -88,7 +89,7 @@ tokenizeValueNames =
   Tokens . Map.fromListWith (++) . concatMap extractValueName
 
 
-extractValueName :: Package -> [(Token, [Ref.Ref])]
+extractValueName :: Package -> [(Token, [ResultInfo])]
 extractValueName package@Package{modules} =
   let
     toKeyValuePairs acc module_@Module{values, binops, aliases} =
@@ -107,6 +108,6 @@ extractValueName package@Package{modules} =
       toPair module_ typeName
 
     toPair module_ typeName =
-      (Token typeName, [Ref.valueRef package module_ typeName])
+      (Token typeName, [ResultInfo.valueRef package module_ typeName])
   in
     List.foldl toKeyValuePairs [] modules
