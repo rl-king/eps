@@ -53,13 +53,13 @@ tokenizePackageNames =
 
 
 extractPackageName :: Package -> (Token, [ResultInfo])
-extractPackageName package@Package{packageName} =
-  case Text.splitOn "/" packageName of
+extractPackageName package@Package{_pName} =
+  case Text.splitOn "/" _pName of
     _:name:_ ->
       (Token name, [ResultInfo.packageRef package])
 
     _ ->
-      (Token packageName, [ResultInfo.packageRef package]) -- Kinda weird, maybe filtermap instead
+      (Token _pName, [ResultInfo.packageRef package]) -- Kinda weird, maybe filtermap instead
 
 
 
@@ -72,12 +72,12 @@ tokenizeModuleNames =
 
 
 extractModuleName :: Package -> [(Token, [ResultInfo])]
-extractModuleName package@Package{modules} =
+extractModuleName package@Package{_pModules} =
   let
-    toKeyValuePairs module_@Module{moduleName} =
-      (Token moduleName, [ResultInfo.moduleRef package module_])
+    toKeyValuePairs module_@Module{_mName} =
+      (Token _mName, [ResultInfo.moduleRef package module_])
   in
-    List.map toKeyValuePairs modules
+    List.map toKeyValuePairs _pModules
 
 
 
@@ -90,24 +90,19 @@ tokenizeValueNames =
 
 
 extractValueName :: Package -> [(Token, [ResultInfo])]
-extractValueName package@Package{modules} =
+extractValueName package@Package{_pModules} =
   let
-    toKeyValuePairs acc module_@Module{values, binops, aliases} =
-      List.map (valueToPair module_) values ++
-      List.map (aliasesToPair module_) aliases ++
-      List.map (binopToPair module_) binops ++
-      acc
+    toKeyValuePairs acc module_@Module{_mDefs} =
+      List.foldl (toInfo module_) [] (Map.elems _mDefs) ++ acc
 
-    aliasesToPair module_ (TypeAlias typeName _ _ _) =
-      toPair module_ typeName
-
-    binopToPair module_ (Binop typeName _ _) =
-      toPair module_ typeName
-
-    valueToPair module_ (Value_ typeName _ _) =
-      toPair module_ typeName
+    toInfo module_ acc def =
+      case def of
+        TypeAlias n _ _ _ ->  toPair module_ n : acc
+        Binop n _ _ ->        toPair module_ n : acc
+        Value_ n _ _ ->       toPair module_ n : acc
+        CustomType _ _ _ _ -> acc
 
     toPair module_ typeName =
       (Token typeName, [ResultInfo.valueRef package module_ typeName])
   in
-    List.foldl toKeyValuePairs [] modules
+    List.foldl toKeyValuePairs [] _pModules

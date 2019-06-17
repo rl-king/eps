@@ -56,12 +56,12 @@ tokenizeSummaries =
 
 
 extractSummary :: Package -> [(Token, [ResultInfo])]
-extractSummary package@Package{summary} =
+extractSummary package@Package{_pSummary} =
   let
     toPair token =
       (token, [ResultInfo.packageRef package])
   in
-    List.map toPair (toTokens summary)
+    List.map toPair (toTokens _pSummary)
 
 
 
@@ -75,25 +75,17 @@ tokenizeComments =
 
 
 extractComments :: Package -> [(Token, [ResultInfo])]
-extractComments package@Package{modules} =
+extractComments package@Package{_pModules} =
   let
-    toComments acc module_@Module{customTypes, values, binops, aliases} =
-      List.map (valueComment module_) values ++
-      List.map (binopComment module_) binops ++
-      List.map (customTypeComment module_) customTypes ++
-      List.map (aliasesComment module_) aliases ++ acc
+    toComments acc module_@Module{_mDefs} =
+      List.foldl (toInfo module_) [] (Map.elems _mDefs) ++ acc
 
-    valueComment module_ (Value_ typeName comment _) =
-      toPair module_ typeName comment
-
-    binopComment module_ (Binop typeName comment _) =
-      toPair module_ typeName comment
-
-    customTypeComment module_ (CustomType typeName comment _ _) =
-      toPair module_ typeName comment
-
-    aliasesComment module_ (TypeAlias typeName comment _ _) =
-      toPair module_ typeName comment
+    toInfo module_ acc def =
+      case def of
+        TypeAlias n c _ _ ->  toPair module_ n c : acc
+        Binop n c _ ->        toPair module_ n c : acc
+        Value_ n c _ ->       toPair module_ n c : acc
+        CustomType n c _ _ -> toPair module_ n c : acc
 
     toPair module_ typeName comment =
       List.map (toPair_ module_ typeName) (toTokens comment)
@@ -101,7 +93,7 @@ extractComments package@Package{modules} =
     toPair_ module_ typeName token =
       (token, [ResultInfo.valueRef package module_ typeName])
   in
-    concat $ List.foldl toComments [] modules
+    concat $ List.foldl toComments [] _pModules
 
 
 

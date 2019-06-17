@@ -1,8 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Data.Package where
 
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
 import Data.Aeson as Aeson
+import Data.Aeson.Types
 import Data.Text (Text)
+
 
 
 -- DEFINITIONS
@@ -15,41 +19,27 @@ type Type = Text
 
 
 data Package = Package
-  { packageName :: Name
-  , summary :: Text
-  , versions :: [Text]
-  , modules :: [Module]
+  { _pName :: Name
+  , _pSummary :: Text
+  , _pVersions :: [Text]
+  , _pModules :: [Module]
   } deriving (Show, Eq)
 
 
 data Module = Module
-  { moduleName :: Name
-  , comment :: Comment
-  , customTypes :: [CustomType]
-  , aliases :: [TypeAlias]
-  , values :: [Value_]
-  , binops :: [Binop]
+  { _mName :: Name
+  , _mComment :: Comment
+  , _mDefs :: Map Name Def
   } deriving (Show, Eq)
 
 
-data TypeAlias =
-  TypeAlias Name Comment Arguments Type
+data Def
+  = TypeAlias Name Comment Arguments Type
+  | CustomType Name Comment Arguments [(Text, [Type])]
+  | Value_ Name Comment Type
+  | Binop Name Comment Type
   deriving (Show, Eq)
 
-
-data CustomType =
-  CustomType Name Comment Arguments [(Text, [Type])]
-  deriving (Show, Eq)
-
-
-data Value_ =
-  Value_ Name Comment Type
-  deriving (Show, Eq)
-
-
-data Binop =
-  Binop Name Comment Type
-  deriving (Show, Eq)
 
 
 -- DECODERS
@@ -68,54 +58,53 @@ instance Aeson.FromJSON Package where
 
 instance Aeson.FromJSON Module where
   parseJSON =
-    Aeson.withObject "Module" $
-    \v ->
-      Module
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "unions"
-      <*> v .: "aliases"
-      <*> v .: "values"
-      <*> v .: "binops"
+    Aeson.withObject "Module" $ \v -> do
+      name <- v .: "name"
+      comment <- v .: "comment"
+      unions <- v .: "unions" >>= traverse parseUnion :: Parser [(Name, Def)]
+      aliases <- v .: "aliases" >>= traverse parseAlias :: Parser [(Name, Def)]
+      values <- v .: "values" >>= traverse parseValue :: Parser [(Name, Def)]
+      binops <- v .: "binops" >>= traverse parseBinop :: Parser [(Name, Def)]
+      return $ Module name comment (Map.fromList $ unions ++ aliases ++ values ++ binops)
 
 
-instance Aeson.FromJSON TypeAlias where
-  parseJSON =
-    Aeson.withObject "TypeAlias" $
-    \v ->
-      TypeAlias
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "args"
-      <*> v .: "type"
+parseAlias :: Value -> Parser (Name, Def)
+parseAlias =
+  Aeson.withObject "TypeAlias" $
+  \v ->
+    (\a b c d -> (a, TypeAlias a b c d))
+    <$> v .: "name"
+    <*> v .: "comment"
+    <*> v .: "args"
+    <*> v .: "type"
 
 
-instance Aeson.FromJSON CustomType where
-  parseJSON =
-    Aeson.withObject "CustomType" $
-    \v ->
-      CustomType
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "args"
-      <*> v .: "cases"
+parseUnion :: Value -> Parser (Name, Def)
+parseUnion =
+  Aeson.withObject "CustomType" $
+  \v ->
+    (\a b c d -> (a, CustomType a b c d))
+    <$> v .: "name"
+    <*> v .: "comment"
+    <*> v .: "args"
+    <*> v .: "cases"
 
 
-instance Aeson.FromJSON Value_ where
-  parseJSON =
+parseValue :: Value -> Parser (Name, Def)
+parseValue =
     Aeson.withObject "Value_" $
     \v ->
-      Value_
+      (\a b c  -> (a, Value_ a b c ))
       <$> v .: "name"
       <*> v .: "comment"
       <*> v .: "type"
 
 
-instance Aeson.FromJSON Binop where
-  parseJSON =
+parseBinop :: Value -> Parser (Name, Def)
+parseBinop =
     Aeson.withObject "Binop" $
     \v ->
-      Binop
+      (\a b c -> (a, Binop a b c))
       <$> v .: "name"
       <*> v .: "comment"
       <*> v .: "type"
@@ -132,48 +121,39 @@ instance Aeson.ToJSON Package where
 
 
 instance Aeson.ToJSON Module where
-    toJSON (Module a b c d e f) =
+    toJSON (Module a b c) =
       object
       [ "name" .= a
       , "comment" .= b
       , "unions" .= c
-      , "aliases" .= d
-      , "values" .= e
-      , "binops" .= f
+      , "aliases" .= c
+      , "values" .= c
+      , "binops" .= c
       ]
-    toEncoding (Module a b c d e f) =
+    toEncoding (Module a b c) =
       pairs $
       "name" .= a <>
       "comment" .= b <>
       "unions" .= c <>
-      "aliases" .= d <>
-      "values" .= e <>
-      "binops" .= f
+      "aliases" .= c <>
+      "values" .= c <>
+      "binops" .= c
 
 
-instance Aeson.ToJSON TypeAlias where
+instance Aeson.ToJSON Def where
     toJSON (TypeAlias a b c d) =
       object ["name" .= a, "comment" .= b, "args" .= c, "type" .= d]
-    toEncoding (TypeAlias a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "type" .= d)
-
-
-instance Aeson.ToJSON CustomType where
     toJSON (CustomType a b c d) =
       object ["name" .= a, "comment" .= b, "args" .= c, "cases" .= d]
-    toEncoding (CustomType a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "cases" .= d)
-
-
-instance Aeson.ToJSON Value_ where
     toJSON (Value_ a b c) =
       object ["name" .= a, "comment" .= b, "type" .= c]
-    toEncoding (Value_ a b c) =
-      pairs ("name" .= a <> "comment" .= b <> "type" .= c)
-
-
-instance Aeson.ToJSON Binop where
     toJSON (Binop a b c) =
       object ["name" .= a, "comment" .= b, "type" .= c]
+    toEncoding (TypeAlias a b c d) =
+      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "type" .= d)
+    toEncoding (CustomType a b c d) =
+      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "cases" .= d)
+    toEncoding (Value_ a b c) =
+      pairs ("name" .= a <> "comment" .= b <> "type" .= c)
     toEncoding (Binop a b c) =
       pairs ("name" .= a <> "comment" .= b <> "type" .= c)

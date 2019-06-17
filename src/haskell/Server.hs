@@ -31,7 +31,7 @@ run :: [Package] -> IO ()
 run packages = do
   let port = 8080
       searchIndex = Search.index packages
-      packageMap = Map.fromList $ (\p -> (packageName p, p)) <$> packages
+      packageMap = Map.fromList $ (\p -> (_pName p, p)) <$> packages
       settings =
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))

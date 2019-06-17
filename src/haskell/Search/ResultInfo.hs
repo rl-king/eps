@@ -20,18 +20,18 @@ data ResultInfo
 
 
 packageRef :: Package -> ResultInfo
-packageRef Package{packageName} =
-  PackageRef packageName
+packageRef Package{_pName} =
+  PackageRef _pName
 
 
 moduleRef :: Package -> Module -> ResultInfo
-moduleRef Package{packageName} Module{moduleName} =
-  ModuleRef packageName moduleName
+moduleRef Package{_pName} Module{_mName} =
+  ModuleRef _pName _mName
 
 
 valueRef :: Package -> Module -> Text -> ResultInfo
-valueRef Package{packageName} Module{moduleName} valueName =
-  ValueRef packageName moduleName valueName
+valueRef Package{_pName} Module{_mName} valueName =
+  ValueRef _pName _mName valueName
 
 
 toSearchResults :: Map Text Package -> [ResultInfo] -> [Result]
@@ -46,12 +46,12 @@ toSearchResult packages ref =
       Nothing
     ModuleRef name _ ->
       Nothing
-    ValueRef packageName moduleName' valueName -> do
-      package <- Map.lookup packageName packages
-      let module' = filter ((==) moduleName' . moduleName) (modules package)
+    ValueRef _pName moduleName' valueName -> do
+      package <- Map.lookup _pName packages
+      let module' = filter ((==) moduleName' . _mName) (_pModules package)
       return Result
         { _rType_ = Search.Result.Value
-        , _rPackageName = packageName
+        , _rPackageName = _pName
         , _rModuleName = moduleName'
         , _rValueName = valueName
         , _rValueComment = ""

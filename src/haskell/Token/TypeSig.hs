@@ -56,27 +56,23 @@ tokenize =
 
 
 extract :: Package -> [(Token, [ResultInfo])]
-extract package@Package{modules} =
+extract package@Package{_pModules} =
   let
-    toKeyValuePairs acc module_@Module{values, binops, aliases} =
-      List.concatMap (valueToPair module_) values ++
-      List.concatMap (aliasesToPair module_) aliases ++
-      List.concatMap (binopToPair module_) binops ++ acc
+    toKeyValuePairs acc module_@Module{_mDefs} =
+      List.foldl (toInfo module_) [] (Map.elems _mDefs) ++ acc
 
-    aliasesToPair module_ (TypeAlias typeName _ _ type_) =
-      toPair module_ typeName type_
-
-    binopToPair module_ (Binop typeName _ type_) =
-      toPair module_ typeName type_
-
-    valueToPair module_ (Value_ typeName _ type_) =
-      toPair module_ typeName type_
+    toInfo module_ acc def =
+      case def of
+        TypeAlias n _ _ t ->  toPair module_ n t ++ acc
+        Binop n _ t ->        toPair module_ n t ++ acc
+        Value_ n _ t ->       toPair module_ n t ++ acc
+        CustomType _ _ _ _ -> acc
 
     toPair module_ typeName type_ =
       List.map (\x -> (x ,[ResultInfo.valueRef package module_ typeName])) $
       toTokens type_
   in
-    List.foldl toKeyValuePairs [] modules
+    List.foldl toKeyValuePairs [] _pModules
 
 
 {-|

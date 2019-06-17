@@ -47,8 +47,9 @@ readPackageList = do
 fetchPackagesList :: IO ()
 fetchPackagesList = do
   response <- request "https://package.elm-lang.org/search.json"
-  let packages = fromMaybe [] $ Aeson.decode (Http.responseBody response)
-  LBS.writeFile "./cache/search.json" (encode packages)
+  case Aeson.eitherDecode (Http.responseBody response) :: Either String [Package] of
+    Left err -> error err
+    Right ps -> LBS.writeFile "./cache/search.json" (encode ps)
 
 
 -- DOCS IO
@@ -57,7 +58,9 @@ fetchPackagesList = do
 readPackageDocs :: IO [Package]
 readPackageDocs = do
   file <- LBS.readFile "./cache/all.json"
-  return $ fromMaybe [] $ Aeson.decode file
+  case Aeson.eitherDecode file :: Either String [Package] of
+    Left err -> error err
+    Right ps -> print (_pModules <$> ps) >> return ps
 
 
 addPackagesModules :: [Package] -> IO ()
@@ -67,9 +70,9 @@ addPackagesModules packages = do
   LBS.writeFile "./cache/all.json" (encode withModules)
   where
     addModules maybeModules package =
-      case Aeson.decode (Http.responseBody maybeModules) :: Maybe [Module] of
-        Just xs -> package {modules = xs}
-        Nothing -> package
+      case Aeson.eitherDecode (Http.responseBody maybeModules) :: Either String [Module] of
+        Left err -> error err
+        Right ms -> package {_pModules = ms}
 
 
 toLatestVersionDocUrl :: Package -> String
