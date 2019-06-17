@@ -73,7 +73,7 @@ perform :: Text -> Map Text Package -> Index -> [Search.Result]
 perform term packages Index{typeSignatures, valueNames, comments, summaries} =
     -- case strategy term of
     --   TypeSigs ->
-        fmap Search.fromPackage $ ResultInfo.toPackages packages $
+        ResultInfo.toSearchResults packages $
         TypeSig.query term typeSignatures
 
       -- _ ->

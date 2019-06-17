@@ -1,11 +1,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Search.ResultInfo (packageRef, moduleRef, valueRef, toPackages, ResultInfo) where
+{-# LANGUAGE OverloadedStrings #-}
+module Search.ResultInfo (packageRef, moduleRef, valueRef, toSearchResults, ResultInfo) where
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Package as Package
+import Search.Result (Result(..))
+import qualified Search.Result
 
 
 
@@ -31,17 +34,26 @@ valueRef Package{packageName} Module{moduleName} valueName =
   ValueRef packageName moduleName valueName
 
 
-toPackages :: Map Text Package -> [ResultInfo] -> [Package]
-toPackages packages =
-   mapMaybe (toPackage packages)
+toSearchResults :: Map Text Package -> [ResultInfo] -> [Result]
+toSearchResults packages =
+  mapMaybe (toSearchResult packages)
 
 
-toPackage :: Map Text Package -> ResultInfo -> Maybe Package
-toPackage packages ref =
+toSearchResult :: Map Text Package -> ResultInfo -> Maybe Result
+toSearchResult packages ref =
   case ref of
     PackageRef name ->
-      Map.lookup name packages
+      Nothing
     ModuleRef name _ ->
-      Map.lookup name packages
-    ValueRef name _ _ ->
-      Map.lookup name packages
+      Nothing
+    ValueRef packageName moduleName' valueName -> do
+      package <- Map.lookup packageName packages
+      let module' = filter ((==) moduleName' . moduleName) (modules package)
+      return Result
+        { _rType_ = Search.Result.Value
+        , _rPackageName = packageName
+        , _rModuleName = moduleName'
+        , _rValueName = valueName
+        , _rValueComment = ""
+        , _rTypeSignature = ""
+        }

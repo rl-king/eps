@@ -9,6 +9,7 @@
   * Does it have tests
   * Dependencies
 * Maybe add more endpoints with indexed information
+* Search for uses of a data type
 
 
 ## Getting started
