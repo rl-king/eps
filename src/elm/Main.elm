@@ -60,9 +60,9 @@ init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
     ( { key = key
       , searchResults = []
-      , searchTerm = "gaming"
+      , searchTerm = "(a -> b) -> Maybe a -> Maybe b"
       }
-    , requestSearchTerm "gaming"
+    , requestSearchTerm "(a -> b) -> Maybe a -> Maybe b"
     )
 
 
@@ -171,7 +171,7 @@ viewResult result =
                     result
                     [ css styling.searchResultPackageName ]
                     [ text result.packageName ]
-                , viewResultCategory result.category
+                , viewResultCategory result.type_
                 ]
             ]
         ]
@@ -188,7 +188,7 @@ viewResultSignature result =
         ]
 
 
-viewResultCategory : Category -> Html Msg
+viewResultCategory : Type -> Html Msg
 viewResultCategory category =
     span
         [ css styling.searchResultCategory
@@ -435,7 +435,7 @@ globalStyling =
 
 
 type alias SearchResult =
-    { category : Category
+    { type_ : Type
     , packageName : String
     , moduleName : String
     , valueName : String
@@ -444,7 +444,7 @@ type alias SearchResult =
     }
 
 
-type Category
+type Type
     = Package
     | Module
     | CustomType
@@ -476,20 +476,20 @@ requestAll =
 decodeResult : Decode.Decoder SearchResult
 decodeResult =
     Decode.map6 SearchResult
-        (Decode.field "category" decodeCategory)
-        (Decode.field "packageName" Decode.string)
-        (Decode.field "moduleName" Decode.string)
-        (Decode.field "valueName" Decode.string)
-        (Decode.field "valueComment" Decode.string)
-        (Decode.field "typeSignature" Decode.string)
+        (Decode.field "_rType_" decodeCategory)
+        (Decode.field "_rPackageName" Decode.string)
+        (Decode.field "_rModuleName" Decode.string)
+        (Decode.field "_rValueName" Decode.string)
+        (Decode.field "_rValueComment" Decode.string)
+        (Decode.field "_rTypeSignature" Decode.string)
 
 
-decodeCategory : Decode.Decoder Category
+decodeCategory : Decode.Decoder Type
 decodeCategory =
     Decode.map categoryFromString Decode.string
 
 
-categoryFromString : String -> Category
+categoryFromString : String -> Type
 categoryFromString s =
     case s of
         "Package" ->
@@ -511,7 +511,7 @@ categoryFromString s =
             BinOp
 
 
-categoryToString : Category -> String
+categoryToString : Type -> String
 categoryToString c =
     case c of
         Package ->
@@ -533,7 +533,7 @@ categoryToString c =
             "Binary operator"
 
 
-categoryToColor : Category -> String
+categoryToColor : Type -> String
 categoryToColor c =
     case c of
         -- blue
