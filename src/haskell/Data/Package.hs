@@ -68,13 +68,15 @@ instance Aeson.FromJSON Module where
         (Map.fromList $ unions ++ aliases ++ values ++ binops)
 
 
-parseUnion :: Object -> Parser (Name, Def)
-parseUnion o = do
-  n <- o .: "name"
-  c <- o .: "comment"
-  a <- o .: "args"
-  c1 <- o .: "cases"
-  return (n, CustomType n c a c1)
+parseUnion :: Value -> Parser (Name, Def)
+parseUnion =
+  Aeson.withObject "Union" $
+  \v ->
+    (\n c a b -> (n, CustomType n c a b))
+    <$> v .: "name"
+    <*> v .: "comment"
+    <*> v .: "args"
+    <*> v .: "cases"
 
 
 parseAlias :: Value -> Parser (Name, Def)
@@ -86,6 +88,7 @@ parseAlias =
     <*> v .: "comment"
     <*> v .: "args"
     <*> v .: "type"
+
 
 parseValue :: Value -> Parser (Name, Def)
 parseValue =
