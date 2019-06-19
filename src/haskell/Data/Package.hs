@@ -8,7 +8,6 @@ import Data.Aeson.Types
 import Data.Text (Text)
 
 
-
 -- DEFINITIONS
 
 
@@ -53,7 +52,7 @@ instance Aeson.FromJSON Package where
       <$> v .: "name"
       <*> v .: "summary"
       <*> v .: "versions"
-      <*> v .:? "docs" .!= [] -- Fallback to [] as this is not in search.json
+      <*> pure []
 
 
 instance Aeson.FromJSON Module where
@@ -61,11 +60,21 @@ instance Aeson.FromJSON Module where
     Aeson.withObject "Module" $ \v -> do
       name <- v .: "name"
       comment <- v .: "comment"
-      unions <- v .: "unions" >>= traverse parseUnion :: Parser [(Name, Def)]
-      aliases <- v .: "aliases" >>= traverse parseAlias :: Parser [(Name, Def)]
-      values <- v .: "values" >>= traverse parseValue :: Parser [(Name, Def)]
-      binops <- v .: "binops" >>= traverse parseBinop :: Parser [(Name, Def)]
-      return $ Module name comment (Map.fromList $ unions ++ aliases ++ values ++ binops)
+      unions <- v .: "unions" >>= traverse parseUnion
+      aliases <- v .: "aliases" >>= traverse parseAlias
+      values <- v .: "values" >>= traverse parseValue
+      binops <- v .: "binops" >>= traverse parseBinop
+      return $ Module name comment
+        (Map.fromList $ unions ++ aliases ++ values ++ binops)
+
+
+parseUnion :: Object -> Parser (Name, Def)
+parseUnion o = do
+  n <- o .: "name"
+  c <- o .: "comment"
+  a <- o .: "args"
+  c1 <- o .: "cases"
+  return (n, CustomType n c a c1)
 
 
 parseAlias :: Value -> Parser (Name, Def)
@@ -77,18 +86,6 @@ parseAlias =
     <*> v .: "comment"
     <*> v .: "args"
     <*> v .: "type"
-
-
-parseUnion :: Value -> Parser (Name, Def)
-parseUnion =
-  Aeson.withObject "CustomType" $
-  \v ->
-    (\a b c d -> (a, CustomType a b c d))
-    <$> v .: "name"
-    <*> v .: "comment"
-    <*> v .: "args"
-    <*> v .: "cases"
-
 
 parseValue :: Value -> Parser (Name, Def)
 parseValue =
