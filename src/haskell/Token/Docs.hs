@@ -18,8 +18,8 @@ import Data.Set (Set)
 import Data.Text (Text)
 
 import Data.Package as Package
-import qualified Search.ResultInfo as ResultInfo
-import Search.ResultInfo (ResultInfo)
+import qualified Search.Result as Result
+import Search.Result
 import qualified NLP.Stemmer as Stem
 
 
@@ -28,7 +28,7 @@ import qualified NLP.Stemmer as Stem
 
 
 newtype Tokens =
-  Tokens { tokens :: Map Token [ResultInfo] }
+  Tokens { tokens :: Map Token [Result.Info] }
   deriving (Show)
 
 
@@ -45,7 +45,7 @@ size (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [ResultInfo]
+query :: Text -> Tokens -> [Result.Info]
 query term (Tokens idx) =
   []
 
@@ -60,11 +60,11 @@ tokenizeSummaries =
   Tokens . Map.fromListWith (++) . concatMap extractSummary
 
 
-extractSummary :: Package -> [(Token, [ResultInfo])]
+extractSummary :: Package -> [(Token, [Result.Info])]
 extractSummary package@Package{_pSummary} =
   let
     toPair token =
-      (token, [ResultInfo.packageRef package])
+      (token, [Result.packageRef package])
   in
     List.map toPair (toTokens _pSummary)
 
@@ -79,7 +79,7 @@ tokenizeComments =
   Tokens . Map.fromListWith (++) . concatMap extractComments
 
 
-extractComments :: Package -> [(Token, [ResultInfo])]
+extractComments :: Package -> [(Token, [Result.Info])]
 extractComments package@Package{_pModules} =
   let
     toComments acc module_@Module{_mDefs} =
@@ -96,7 +96,7 @@ extractComments package@Package{_pModules} =
       List.map (toPair_ module_ typeName) (toTokens comment)
 
     toPair_ module_ typeName token =
-      (token, [ResultInfo.valueRef package module_ typeName])
+      (token, [Result.valueRef package module_ typeName])
   in
     concat $ List.foldl toComments [] _pModules
 

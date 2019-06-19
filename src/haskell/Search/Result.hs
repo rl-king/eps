@@ -1,16 +1,26 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Search.Result where
+module Search.Result (packageRef, moduleRef, valueRef, toSearchResults, Info, Result) where
 
-import Data.Aeson as Aeson hiding (Result)
+import qualified Data.Aeson as Aeson
+import qualified Data.Map.Strict as Map
+import Data.Package as Package
+import Data.Map.Strict (Map)
+import Data.Maybe (mapMaybe)
 import Data.Text (Text)
-import GHC.Generics hiding (moduleName)
+import GHC.Generics
 
+
+
+type PackageName = Text
+type ModuleName = Text
+type DefName = Text
 
 
 data Result =
   Result
-  { _rType_ :: Type
+  { _rCategory :: Text
   , _rPackageName :: Text
   , _rModuleName :: Text
   , _rValueName :: Text
@@ -22,10 +32,49 @@ data Result =
 instance Aeson.ToJSON Result
 
 
-data Type
-  = Value
-  | Package
-  deriving (Generic, Ord, Eq, Show)
+data Info
+  = PackageRef PackageName
+  | ModuleRef PackageName ModuleName
+  | ValueRef PackageName ModuleName DefName
+  deriving (Eq, Show, Ord)
 
 
-instance Aeson.ToJSON Type
+packageRef :: Package -> Info
+packageRef Package{_pName} =
+  PackageRef _pName
+
+
+moduleRef :: Package -> Module -> Info
+moduleRef Package{_pName} Module{_mName} =
+  ModuleRef _pName _mName
+
+
+valueRef :: Package -> Module -> Text -> Info
+valueRef Package{_pName} Module{_mName} =
+  ValueRef _pName _mName
+
+
+toSearchResults :: Map Text Package -> [Info] -> [Result]
+toSearchResults packages =
+  mapMaybe (toSearchResult packages)
+
+
+toSearchResult :: Map Text Package -> Info -> Maybe Result
+toSearchResult packages ref =
+  case ref of
+    PackageRef name ->
+      Nothing
+    ModuleRef name _ ->
+      Nothing
+    ValueRef _pName _mName _dName -> do
+      package <- Map.lookup _pName packages
+      module' <- Map.lookup _mName (_pModules package)
+      def <- Map.lookup _dName (_mDefs module')
+      return Result
+        { _rCategory = Package.category def
+        , _rPackageName = _pName
+        , _rModuleName = _mName
+        , _rValueName = _dName
+        , _rValueComment = Package.comment def
+        , _rTypeSignature = Package.typeSig def
+        }

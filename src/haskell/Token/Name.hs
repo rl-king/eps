@@ -17,8 +17,8 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
-import qualified Search.ResultInfo as ResultInfo
-import Search.ResultInfo (ResultInfo)
+import qualified Search.Result as Result
+import Search.Result
 
 
 
@@ -26,7 +26,7 @@ import Search.ResultInfo (ResultInfo)
 
 
 newtype Tokens =
-  Tokens { tokens :: Map Token [ResultInfo] }
+  Tokens { tokens :: Map Token [Result.Info] }
   deriving (Show)
 
 
@@ -43,7 +43,7 @@ size (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [ResultInfo]
+query :: Text -> Tokens -> [Result.Info]
 query term (Tokens idx) =
   []
 
@@ -57,14 +57,14 @@ tokenizePackageNames =
   Tokens . Map.fromListWith (++) . map extractPackageName
 
 
-extractPackageName :: Package -> (Token, [ResultInfo])
+extractPackageName :: Package -> (Token, [Result.Info])
 extractPackageName package@Package{_pName} =
   case Text.splitOn "/" _pName of
     _:name:_ ->
-      (Token name, [ResultInfo.packageRef package])
+      (Token name, [Result.packageRef package])
 
     _ ->
-      (Token _pName, [ResultInfo.packageRef package]) -- Kinda weird, maybe filtermap instead
+      (Token _pName, [Result.packageRef package]) -- Kinda weird, maybe filtermap instead
 
 
 
@@ -76,13 +76,13 @@ tokenizeModuleNames =
   Tokens . Map.fromListWith (++) . concatMap extractModuleName
 
 
-extractModuleName :: Package -> [(Token, [ResultInfo])]
+extractModuleName :: Package -> [(Token, [Result.Info])]
 extractModuleName package@Package{_pModules} =
   let
     toKeyValuePairs module_@Module{_mName} =
-      (Token _mName, [ResultInfo.moduleRef package module_])
+      (Token _mName, [Result.moduleRef package module_])
   in
-    List.map toKeyValuePairs _pModules
+    List.map toKeyValuePairs $ Map.elems _pModules
 
 
 
@@ -94,7 +94,7 @@ tokenizeValueNames =
   Tokens . Map.fromListWith (++) . concatMap extractValueName
 
 
-extractValueName :: Package -> [(Token, [ResultInfo])]
+extractValueName :: Package -> [(Token, [Result.Info])]
 extractValueName package@Package{_pModules} =
   let
     toKeyValuePairs acc module_@Module{_mDefs} =
@@ -108,6 +108,6 @@ extractValueName package@Package{_pModules} =
         CustomType _ _ _ _ -> acc
 
     toPair module_ typeName =
-      (Token typeName, [ResultInfo.valueRef package module_ typeName])
+      (Token typeName, [Result.valueRef package module_ typeName])
   in
     List.foldl toKeyValuePairs [] _pModules

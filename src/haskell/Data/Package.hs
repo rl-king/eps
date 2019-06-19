@@ -21,7 +21,7 @@ data Package = Package
   { _pName :: Name
   , _pSummary :: Text
   , _pVersions :: [Text]
-  , _pModules :: [Module]
+  , _pModules :: Map Name Module
   } deriving (Show, Eq)
 
 
@@ -40,6 +40,26 @@ data Def
   deriving (Show, Eq)
 
 
+comment :: Def -> Text
+comment def = case defInfo def of (_,c,_,_,_) -> c
+
+
+typeSig :: Def -> Text
+typeSig def = case defInfo def of (_,_,_,t,_) -> t
+
+
+category :: Def -> Text
+category def = case defInfo def of (_,_,_,_,c) -> c
+
+
+defInfo :: Def -> (Text, Text, Text, Text, Text)
+defInfo def =
+  case def of
+    TypeAlias n c a t -> (n, c, "", t, "Type alias")
+    CustomType n c a _ -> (n, c, "", "", "Custom type")
+    Value_ n c t -> (n, c, "", t, "Expression")
+    Binop n c t -> (n, c, "", t, "Binary operator")
+
 
 -- DECODERS
 
@@ -52,7 +72,7 @@ instance Aeson.FromJSON Package where
       <$> v .: "name"
       <*> v .: "summary"
       <*> v .: "versions"
-      <*> pure []
+      <*> pure Map.empty
 
 
 instance Aeson.FromJSON Module where
@@ -108,52 +128,3 @@ parseBinop =
       <$> v .: "name"
       <*> v .: "comment"
       <*> v .: "type"
-
-
--- ENCODERS
-
-
-instance Aeson.ToJSON Package where
-    toJSON (Package x y z d) =
-      object ["name" .= x, "summary" .= y, "versions" .= z, "docs" .= d]
-    toEncoding (Package x y z d) =
-      pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
-
-
-instance Aeson.ToJSON Module where
-    toJSON (Module a b c) =
-      object
-      [ "name" .= a
-      , "comment" .= b
-      , "unions" .= c
-      , "aliases" .= c
-      , "values" .= c
-      , "binops" .= c
-      ]
-    toEncoding (Module a b c) =
-      pairs $
-      "name" .= a <>
-      "comment" .= b <>
-      "unions" .= c <>
-      "aliases" .= c <>
-      "values" .= c <>
-      "binops" .= c
-
-
-instance Aeson.ToJSON Def where
-    toJSON (TypeAlias a b c d) =
-      object ["name" .= a, "comment" .= b, "args" .= c, "type" .= d]
-    toJSON (CustomType a b c d) =
-      object ["name" .= a, "comment" .= b, "args" .= c, "cases" .= d]
-    toJSON (Value_ a b c) =
-      object ["name" .= a, "comment" .= b, "type" .= c]
-    toJSON (Binop a b c) =
-      object ["name" .= a, "comment" .= b, "type" .= c]
-    toEncoding (TypeAlias a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "type" .= d)
-    toEncoding (CustomType a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "cases" .= d)
-    toEncoding (Value_ a b c) =
-      pairs ("name" .= a <> "comment" .= b <> "type" .= c)
-    toEncoding (Binop a b c) =
-      pairs ("name" .= a <> "comment" .= b <> "type" .= c)

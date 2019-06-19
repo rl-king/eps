@@ -11,15 +11,15 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
-import qualified Search.ResultInfo as ResultInfo
-import Search.ResultInfo (ResultInfo)
+import qualified Search.Result as Result
+import Search.Result
 
 
 -- DEFINITIONS
 
 
 newtype Tokens =
-  Tokens { tokens :: Map Token [ResultInfo] }
+  Tokens { tokens :: Map Token [Result.Info] }
   deriving (Show)
 
 
@@ -36,7 +36,7 @@ size (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [ResultInfo]
+query :: Text -> Tokens -> [Result.Info]
 query term (Tokens idx) =
   List.map fst . List.take 30 . List.sortOn (Data.Ord.Down . snd) .
   Map.toList $ List.foldl getTs Map.empty tokens
@@ -59,7 +59,7 @@ tokenize =
   Tokens . Map.fromListWith (++) . concatMap extract
 
 
-extract :: Package -> [(Token, [ResultInfo])]
+extract :: Package -> [(Token, [Result.Info])]
 extract package@Package{_pModules} =
   let
     toKeyValuePairs acc module_@Module{_mDefs} =
@@ -70,10 +70,10 @@ extract package@Package{_pModules} =
         TypeAlias n _ _ t ->  toPair module_ n t ++ acc
         Binop n _ t ->        toPair module_ n t ++ acc
         Value_ n _ t ->       toPair module_ n t ++ acc
-        CustomType _ _ _ _ -> acc
+        CustomType{} ->       acc
 
     toPair module_ typeName type_ =
-      List.map (\x -> (x ,[ResultInfo.valueRef package module_ typeName])) $
+      List.map (\x -> (x ,[Result.valueRef package module_ typeName])) $
       toTokens type_
   in
     List.foldl toKeyValuePairs [] _pModules

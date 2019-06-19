@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Search where
 
+import Data.Foldable
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -13,8 +14,8 @@ import qualified Token.Docs as Docs
 import qualified Token.TypeSig as TypeSig
 import qualified Token.Name as Name
 import Data.Package (Package)
-import qualified Search.ResultInfo as ResultInfo
-import Search.ResultInfo (ResultInfo)
+import qualified Search.Result as Result
+import Search.Result
 
 
 
@@ -43,24 +44,26 @@ index packages = Index
 
 
 info :: Index -> IO ()
-info (Index ts vn mn pn d c) = do
-  print $ show (TypeSig.size ts) ++ " : indexed type signatures"
-  print $ show (Name.size vn) ++ " : indexed value names"
-  print $ show (Name.size mn) ++ " : indexed module names"
-  print $ show (Name.size pn) ++ " : indexed package names"
-  print $ show (Docs.size d) ++ " : indexed summaries"
-  print $ show (Docs.size c) ++ " : indexed comments"
+info (Index ts vn mn pn d c) =
+  traverse_ print
+    [ show (TypeSig.size ts) ++ " : indexed type signatures"
+    , show (Name.size vn) ++ " : indexed value names"
+    , show (Name.size mn) ++ " : indexed module names"
+    , show (Name.size pn) ++ " : indexed package names"
+    , show (Docs.size d) ++ " : indexed summaries"
+    , show (Docs.size c) ++ " : indexed comments"
+    ]
 
 
 
 -- SEARCHING
 
 
-perform :: Text -> Map Text Package -> Index -> [Search.Result]
+perform :: Text -> Map Text Package -> Index -> [Result]
 perform term packages Index{typeSignatures, valueNames, comments, summaries} =
     -- case strategy term of
     --   TypeSigs ->
-        ResultInfo.toSearchResults packages $
+        Result.toSearchResults packages $
         TypeSig.query term typeSignatures
 
       -- _ ->

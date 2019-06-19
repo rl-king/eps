@@ -3,6 +3,7 @@ module Main (main) where
 
 import Control.Monad
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
@@ -29,8 +30,10 @@ main = do
   unless allJsonExists (fetchModules packageList)
   modules <- readModules
 
-  let packagesWithModules =
-        zipWith (\ms p -> p {_pModules = ms}) modules packageList
+  let toMap =
+        Map.fromList . fmap (\m -> (_mName m, m))
+      packagesWithModules =
+        take 100 $ zipWith (\ms p -> p {_pModules = toMap ms}) modules packageList
 
   -- Serve "/" "/search" "/search?term="
   Server.run packagesWithModules

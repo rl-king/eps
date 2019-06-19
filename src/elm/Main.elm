@@ -51,7 +51,7 @@ main =
 
 type alias Model =
     { key : Browser.Navigation.Key
-    , searchResults : List SearchResult
+    , searchResults : Maybe (Result Http.Error (List SearchResult))
     , searchTerm : String
     }
 
@@ -59,7 +59,7 @@ type alias Model =
 init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
     ( { key = key
-      , searchResults = []
+      , searchResults = Nothing
       , searchTerm = "(a -> b) -> Maybe a -> Maybe b"
       }
     , requestSearchTerm "(a -> b) -> Maybe a -> Maybe b"
@@ -98,15 +98,8 @@ update msg model =
         PerformSearch ->
             ( model, requestSearchTerm model.searchTerm )
 
-        GotSearchResults (Ok searchResults) ->
-            ( { model | searchResults = searchResults }, Cmd.none )
-
-        GotSearchResults (Err err) ->
-            let
-                _ =
-                    Debug.log "Error in search results request" err
-            in
-            ( model, Cmd.none )
+        GotSearchResults result ->
+            ( { model | searchResults = Just result }, Cmd.none )
 
 
 
@@ -125,7 +118,13 @@ viewBody model =
     main_ [ css styling.main ]
         [ global globalStyling
         , viewHeader model
-        , viewResults model
+        , section [ css styling.content ]
+            [ div [ css styling.sidebar ]
+                [ h2 [] [ text "packages" ]
+                , h2 [] [ text "modules" ]
+                ]
+            , viewResults model
+            ]
         ]
 
 
@@ -147,14 +146,16 @@ viewHeader model =
 
 viewResults : Model -> Html Msg
 viewResults model =
-    section [ css styling.content ]
-        [ div [ css styling.sidebar ]
-            [ h2 [] [ text "packages" ]
-            , h2 [] [ text "modules" ]
-            ]
-        , ul [ css styling.searchResults ] <|
-            List.map viewResult model.searchResults
-        ]
+    case model.searchResults of
+        Just (Ok results) ->
+            ul [ css styling.searchResults ] <|
+                List.map viewResult results
+
+        Just (Err (Http.BadPayload err _)) ->
+            Html.Styled.pre [] [ text err ]
+
+        _ ->
+            Html.Styled.pre [] [ text "loading" ]
 
 
 viewResult : SearchResult -> Html Msg
@@ -164,9 +165,9 @@ viewResult result =
             [ link ValueLink result [] [ viewResultSignature result ]
             ]
         , div [ css styling.searchResultBody ]
-            [ fromUnstyled <|
-                Markdown.toHtml [ Html.Attributes.class "markdown" ] result.valueComment
-            , footer [ css styling.searchResultFooter ]
+            -- [ fromUnstyled <|
+            --     Markdown.toHtml [ Html.Attributes.class "markdown" ] result.valueComment
+            [ footer [ css styling.searchResultFooter ]
                 [ link PackageLink
                     result
                     [ css styling.searchResultPackageName ]
@@ -188,13 +189,13 @@ viewResultSignature result =
         ]
 
 
-viewResultCategory : Type -> Html Msg
+viewResultCategory : String -> Html Msg
 viewResultCategory category =
     span
         [ css styling.searchResultCategory
-        , style "background-color" (categoryToColor category)
+        , style "background-color" "#eee"
         ]
-        [ text (categoryToString category)
+        [ text category
         ]
 
 
@@ -334,8 +335,9 @@ styling =
         ]
     , searchResultHeader =
         [ backgroundColor colors.sand
-        , height (ms 6)
-        , padding2 zero (rem 1)
+
+        -- , height (ms 6)
+        , padding2 (rem 0.5) (rem 1)
         , displayFlex
         , alignItems center
         ]
@@ -351,11 +353,10 @@ styling =
         ]
     , searchResultSignature =
         [ fontSize (ms 0)
-        , color colors.red
         , fontWeight (int 500)
         ]
     , searchResultValueName =
-        [ color colors.black
+        [ color colors.blue
         ]
     , searchResultPackageName =
         [ color colors.green
@@ -409,7 +410,10 @@ globalStyling =
         , fontSize (ms 1)
         , fontWeight (int 400)
         ]
-    , Global.pre [ display none ]
+    , Global.pre
+        [ padding (rem 2)
+        , fontSize (rem 0.75)
+        ]
     , Global.a
         [ textDecoration none
         , color colors.black
@@ -435,22 +439,13 @@ globalStyling =
 
 
 type alias SearchResult =
-    { type_ : Type
+    { type_ : String
     , packageName : String
     , moduleName : String
     , valueName : String
     , valueComment : String
     , typeSignature : String
     }
-
-
-type Type
-    = Package
-    | Module
-    | CustomType
-    | TypeAlias
-    | Value
-    | BinOp
 
 
 
@@ -476,86 +471,9 @@ requestAll =
 decodeResult : Decode.Decoder SearchResult
 decodeResult =
     Decode.map6 SearchResult
-        (Decode.field "_rType_" decodeCategory)
+        (Decode.field "_rCategory" Decode.string)
         (Decode.field "_rPackageName" Decode.string)
         (Decode.field "_rModuleName" Decode.string)
         (Decode.field "_rValueName" Decode.string)
         (Decode.field "_rValueComment" Decode.string)
         (Decode.field "_rTypeSignature" Decode.string)
-
-
-decodeCategory : Decode.Decoder Type
-decodeCategory =
-    Decode.map categoryFromString Decode.string
-
-
-categoryFromString : String -> Type
-categoryFromString s =
-    case s of
-        "Package" ->
-            Package
-
-        "Module" ->
-            Module
-
-        "CustomType" ->
-            CustomType
-
-        "TypeAlias" ->
-            TypeAlias
-
-        "Value" ->
-            Value
-
-        _ ->
-            BinOp
-
-
-categoryToString : Type -> String
-categoryToString c =
-    case c of
-        Package ->
-            "Package"
-
-        Module ->
-            "Module"
-
-        CustomType ->
-            "Custom Type"
-
-        TypeAlias ->
-            "Type Alias"
-
-        Value ->
-            "Value"
-
-        BinOp ->
-            "Binary operator"
-
-
-categoryToColor : Type -> String
-categoryToColor c =
-    case c of
-        -- blue
-        Package ->
-            "#3CA5EA"
-
-        -- green
-        Module ->
-            "#43DCC1"
-
-        -- red
-        CustomType ->
-            "#FD3740"
-
-        -- purple
-        TypeAlias ->
-            "#7F63D2"
-
-        --yellow
-        Value ->
-            "#F1D027"
-
-        -- pink
-        BinOp ->
-            "#f9b2e1"
