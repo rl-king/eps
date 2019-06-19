@@ -3,6 +3,7 @@
 module Token.Docs
   ( Tokens
   , Token
+  , size
   , query
   , tokenizeSummaries
   , tokenizeComments
@@ -35,6 +36,10 @@ newtype Token =
   Token { token :: Text }
   deriving (Eq, Ord, Show)
 
+
+size :: Tokens -> Int
+size (Tokens tokens) =
+  Map.size tokens
 
 
 -- QUERY

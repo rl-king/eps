@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Token.TypeSig (Tokens, Token, query, tokenize) where
+module Token.TypeSig (Tokens, Token, size, query, tokenize) where
 
 import qualified Data.List as List
 import qualified Data.Char as Char
@@ -27,6 +27,10 @@ newtype Token =
   Token { token :: (Text, Int)}
   deriving (Eq, Ord, Show)
 
+
+size :: Tokens -> Int
+size (Tokens tokens) =
+  Map.size tokens
 
 
 -- QUERY

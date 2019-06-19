@@ -8,7 +8,6 @@ import Data.Text (Text)
 import Data.Map.Strict (Map)
 import Network.Wai
 import Network.Wai.Handler.Warp
-import Network.Wai.Middleware.Gzip
 import Servant
 import System.IO
 
@@ -36,13 +35,13 @@ run packages = do
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
         defaultSettings
-  -- Search.info searchIndex
+  Search.info searchIndex
   runSettings settings =<< mkApp searchIndex packageMap
 
 
 mkApp :: Search.Index -> Map Name Package-> IO Application
 mkApp searchIndex packageMap =
-  return . gzip def { gzipFiles = GzipCompress } . serve api $
+  return . serve api $
   server searchIndex packageMap
 
 

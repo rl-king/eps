@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 module Main (main) where
 
 import Control.Monad
@@ -27,7 +26,7 @@ main = do
 
   -- Load all.json
   allJsonExists <- doesFileExist "./cache/packagemodules.json"
-  unless allJsonExists (fetchModules (take 20 packageList))
+  unless allJsonExists (fetchModules packageList)
   modules <- readModules
 
   let packagesWithModules =

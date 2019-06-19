@@ -42,27 +42,14 @@ index packages = Index
   (Docs.tokenizeComments packages)
 
 
--- info :: Index -> IO ()
--- info index =
---   let
---     -- tl (TypeSig.Tokens m) = Map.toList $ Map.map length m
---     -- results = putStrLn . unlines . map show . take 50 . reverse
-
---     -- ts = tl $ typeSignatures index
---     -- vn = tl $ valueNames index
---     -- mn = tl $ moduleNames index
---     -- pn = tl $ packageNames index
---     -- d = tl $ summaries index
---     -- c = tl $ comments index
---   in
---     do
---       -- mapM_ results [ts, vn, mn, pn, List.sortOn snd d, List.sortOn snd c]
---       -- print $ show (length ts) ++ " : indexed type signatures"
---       -- print $ show (length vn) ++ " : indexed value names"
---       -- print $ show (length mn) ++ " : indexed module names"
---       -- print $ show (length pn) ++ " : indexed package names"
---       -- print $ show (length d) ++ " : indexed summaries"
---       -- print $ show (length c) ++ " : indexed comments"
+info :: Index -> IO ()
+info (Index ts vn mn pn d c) = do
+  print $ show (TypeSig.size ts) ++ " : indexed type signatures"
+  print $ show (Name.size vn) ++ " : indexed value names"
+  print $ show (Name.size mn) ++ " : indexed module names"
+  print $ show (Name.size pn) ++ " : indexed package names"
+  print $ show (Docs.size d) ++ " : indexed summaries"
+  print $ show (Docs.size c) ++ " : indexed comments"
 
 
 

@@ -3,6 +3,7 @@
 module Token.Name
   ( Tokens
   , Token
+  , size
   , query
   , tokenizePackageNames
   , tokenizeModuleNames
@@ -33,6 +34,10 @@ newtype Token =
   Token { token :: Text }
   deriving (Eq, Ord, Show)
 
+
+size :: Tokens -> Int
+size (Tokens tokens) =
+  Map.size tokens
 
 
 -- QUERY
