@@ -173,6 +173,7 @@ viewResult result =
                     [ css styling.searchResultPackageName ]
                     [ text result.packageName ]
                 , viewResultCategory result.type_
+                , text (String.fromInt result.points)
                 ]
             ]
         ]
@@ -445,6 +446,7 @@ type alias SearchResult =
     , valueName : String
     , valueComment : String
     , typeSignature : String
+    , points : Int
     }
 
 
@@ -470,10 +472,11 @@ requestAll =
 
 decodeResult : Decode.Decoder SearchResult
 decodeResult =
-    Decode.map6 SearchResult
+    Decode.map7 SearchResult
         (Decode.field "_rCategory" Decode.string)
         (Decode.field "_rPackageName" Decode.string)
         (Decode.field "_rModuleName" Decode.string)
         (Decode.field "_rValueName" Decode.string)
         (Decode.field "_rValueComment" Decode.string)
         (Decode.field "_rTypeSignature" Decode.string)
+        (Decode.field "_rPoints" Decode.int)

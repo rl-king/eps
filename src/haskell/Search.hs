@@ -44,7 +44,8 @@ index packages = Index
 
 
 info :: Index -> IO ()
-info (Index ts vn mn pn d c) =
+info (Index ts vn mn pn d c) = do
+  print $ Name.keys pn
   traverse_ print
     [ show (TypeSig.size ts) ++ " : indexed type signatures"
     , show (Name.size vn) ++ " : indexed value names"
@@ -60,11 +61,12 @@ info (Index ts vn mn pn d c) =
 
 
 perform :: Text -> Map Text Package -> Index -> [Result]
-perform term packages Index{typeSignatures, valueNames, comments, summaries} =
+perform term packages Index{typeSignatures, packageNames, comments, summaries} =
     -- case strategy term of
     --   TypeSigs ->
         Result.toSearchResults packages $
-        TypeSig.query term typeSignatures
+        -- TypeSig.query term typeSignatures
+        Name.query term packageNames
 
       -- _ ->
       --   []

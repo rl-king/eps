@@ -4,6 +4,7 @@ module Token.Name
   ( Tokens
   , Token
   , size
+  , keys
   , query
   , tokenizePackageNames
   , tokenizeModuleNames
@@ -13,7 +14,9 @@ module Token.Name
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
+import qualified Data.Ord
 import Data.Map.Strict (Map)
+import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 
 import Data.Package as Package
@@ -40,12 +43,26 @@ size (Tokens tokens) =
   Map.size tokens
 
 
+keys :: Tokens -> [Token]
+keys (Tokens tokens) =
+  Map.keys tokens
+
+
 -- QUERY
 
 
-query :: Text -> Tokens -> [Result.Info]
-query term (Tokens idx) =
-  []
+query :: Text -> Tokens -> [(Result.Info, Int)]
+query term (Tokens index) =
+  List.take 30 . List.sortOn (Data.Ord.Down . snd) .
+  Map.toList $ List.foldl lookupTokens Map.empty tokens
+  where
+    tokens = Token <$> Text.words term
+    lookupTokens acc termPart =
+      case Map.lookup termPart index of
+        Nothing ->
+          acc
+        Just xs ->
+          List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
 
 
 
@@ -54,17 +71,17 @@ query term (Tokens idx) =
 
 tokenizePackageNames :: [Package] -> Tokens
 tokenizePackageNames =
-  Tokens . Map.fromListWith (++) . map extractPackageName
+  Tokens . Map.fromListWith (++) . mapMaybe extractPackageName
 
 
-extractPackageName :: Package -> (Token, [Result.Info])
+extractPackageName :: Package -> Maybe (Token, [Result.Info])
 extractPackageName package@Package{_pName} =
   case Text.splitOn "/" _pName of
     _:name:_ ->
-      (Token name, [Result.packageRef package])
+      Just (Token name, [Result.packageRef package])
 
     _ ->
-      (Token _pName, [Result.packageRef package]) -- Kinda weird, maybe filtermap instead
+      Nothing
 
 
 

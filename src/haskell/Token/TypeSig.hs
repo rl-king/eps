@@ -12,7 +12,6 @@ import Data.Text (Text)
 
 import Data.Package as Package
 import qualified Search.Result as Result
-import Search.Result
 
 
 -- DEFINITIONS
@@ -36,14 +35,14 @@ size (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [Result.Info]
-query term (Tokens idx) =
-  List.map fst . List.take 30 . List.sortOn (Data.Ord.Down . snd) .
-  Map.toList $ List.foldl getTs Map.empty tokens
+query :: Text -> Tokens -> [(Result.Info, Int)]
+query term (Tokens index) =
+  List.take 30 . List.sortOn (Data.Ord.Down . snd) .
+  Map.toList $ List.foldl lookupTokens Map.empty tokens
   where
     tokens = toTokens term
-    getTs acc termPart =
-      case Map.lookup termPart idx of
+    lookupTokens acc termPart =
+      case Map.lookup termPart index of
         Nothing ->
           acc
         Just xs ->

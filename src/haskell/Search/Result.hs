@@ -26,6 +26,7 @@ data Result =
   , _rValueName :: Text
   , _rValueComment :: Text
   , _rTypeSignature :: Text
+  , _rPoints :: Int
   } deriving (Generic, Ord, Eq)
 
 
@@ -54,18 +55,34 @@ valueRef Package{_pName} Module{_mName} =
   ValueRef _pName _mName
 
 
-toSearchResults :: Map Text Package -> [Info] -> [Result]
+toSearchResults :: Map Text Package -> [(Info, Int)] -> [Result]
 toSearchResults packages =
   mapMaybe (toSearchResult packages)
 
 
-toSearchResult :: Map Text Package -> Info -> Maybe Result
-toSearchResult packages ref =
+toSearchResult :: Map Text Package -> (Info, Int)-> Maybe Result
+toSearchResult packages (ref, points) =
   case ref of
-    PackageRef name ->
-      Nothing
-    ModuleRef name _ ->
-      Nothing
+    PackageRef _pName ->
+      return Result
+        { _rCategory = "Package"
+        , _rPackageName = _pName
+        , _rModuleName = ""
+        , _rValueName = ""
+        , _rValueComment = ""
+        , _rTypeSignature = ""
+        , _rPoints = points
+        }
+    ModuleRef _pName _mName ->
+      return Result
+        { _rCategory = "Module"
+        , _rPackageName = _pName
+        , _rModuleName = _mName
+        , _rValueName = ""
+        , _rValueComment = ""
+        , _rTypeSignature = ""
+        , _rPoints = points
+        }
     ValueRef _pName _mName _dName -> do
       package <- Map.lookup _pName packages
       module' <- Map.lookup _mName (_pModules package)
@@ -77,4 +94,5 @@ toSearchResult packages ref =
         , _rValueName = _dName
         , _rValueComment = Package.comment def
         , _rTypeSignature = Package.typeSig def
+        , _rPoints = points
         }
