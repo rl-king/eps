@@ -62,9 +62,9 @@ info (Index ts vn mn pn d c) =
 perform :: Text -> Map Text Package -> Index -> ([String], [Result])
 perform term packages index =
   let
-    packageNames = Name.query term (_iPackageNames index)
-    moduleNames = Name.query term (_iModuleNames index)
-    defNames = Name.query term (_iDefNames index)
+    packageNames = Name.query term 10 (_iPackageNames index)
+    moduleNames = Name.query term 5 (_iModuleNames index)
+    defNames = Name.query term 7 (_iDefNames index)
     summaries = Docs.query term (_iSummaries index)
     comments = Docs.query term (_iComments index)
     typeSigs = TypeSig.query term (_iTypeSignatures index)
@@ -79,13 +79,14 @@ perform term packages index =
   in
     ( info
     , Result.toSearchResults packages
-      . take 20
+      . take 10
       . reverse
       . List.sortOn snd
       $ Map.toList packageNames
+      ++ Map.toList moduleNames
+      ++ rank packageNames moduleNames (Map.toList defNames)
       ++ rank packageNames moduleNames typeSigs
     )
-
 
 
 rank ::
@@ -104,8 +105,8 @@ rank packages modules typeSigs =
             mMember = Map.member (Result.ModuleRef pName mName) modules
           in
             case (pMember, mMember) of
-              (True, True) -> (info, points + 10)
-              (False, True) -> (info, points + 7)
+              (True, True) -> (info, points + 15)
+              (False, True) -> (info, points + 10)
               (True, False) -> (info, points + 5)
               (False, False) -> (info, points)
         _ ->

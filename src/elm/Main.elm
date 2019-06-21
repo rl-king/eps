@@ -172,7 +172,7 @@ viewResult result =
                     result
                     [ css styling.searchResultPackageName ]
                     [ text result.packageName ]
-                , viewResultCategory result.type_
+                , viewResultCategory result.category
                 , text (String.fromInt result.points)
                 ]
             ]
@@ -190,13 +190,13 @@ viewResultSignature result =
         ]
 
 
-viewResultCategory : String -> Html Msg
+viewResultCategory : Category -> Html Msg
 viewResultCategory category =
     span
         [ css styling.searchResultCategory
-        , style "background-color" "#eee"
+        , style "background-color" (categoryToColor category)
         ]
-        [ text category
+        [ text (categoryToString category)
         ]
 
 
@@ -440,7 +440,7 @@ globalStyling =
 
 
 type alias SearchResult =
-    { type_ : String
+    { category : Category
     , packageName : String
     , moduleName : String
     , valueName : String
@@ -448,6 +448,12 @@ type alias SearchResult =
     , typeSignature : String
     , points : Int
     }
+
+
+type Category
+    = Package
+    | Module
+    | Expression String
 
 
 
@@ -473,10 +479,57 @@ requestAll =
 decodeResult : Decode.Decoder SearchResult
 decodeResult =
     Decode.map7 SearchResult
-        (Decode.field "_rCategory" Decode.string)
+        (Decode.field "_rCategory" decodeCategory)
         (Decode.field "_rPackageName" Decode.string)
         (Decode.field "_rModuleName" Decode.string)
         (Decode.field "_rValueName" Decode.string)
         (Decode.field "_rValueComment" Decode.string)
         (Decode.field "_rTypeSignature" Decode.string)
         (Decode.field "_rPoints" Decode.int)
+
+
+decodeCategory : Decode.Decoder Category
+decodeCategory =
+    Decode.andThen categoryFromString Decode.string
+
+
+categoryFromString : String -> Decode.Decoder Category
+categoryFromString s =
+    case s of
+        "Package" ->
+            Decode.succeed Package
+
+        "Module" ->
+            Decode.succeed Module
+
+        x ->
+            Decode.succeed (Expression x)
+
+
+categoryToString : Category -> String
+categoryToString c =
+    case c of
+        Package ->
+            "Package"
+
+        Module ->
+            "Module"
+
+        Expression x ->
+            x
+
+
+categoryToColor : Category -> String
+categoryToColor c =
+    case c of
+        -- blue
+        Package ->
+            "#3CA5EA"
+
+        -- green
+        Module ->
+            "#43DCC1"
+
+        --yellow
+        Expression _ ->
+            "#F1D027"

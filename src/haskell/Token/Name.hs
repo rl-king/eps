@@ -50,8 +50,8 @@ keys (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> Map Result.Info Int
-query term (Tokens index) =
+query :: Text -> Int -> Tokens -> Map Result.Info Int
+query term points (Tokens index) =
   List.foldl lookupTokens Map.empty $
   Token <$> Text.words term
   where
@@ -60,7 +60,7 @@ query term (Tokens index) =
         Nothing ->
           acc
         Just xs ->
-          List.foldl (\acc_ x -> Map.insertWith (+) x 5 acc_) acc xs
+          List.foldl (\acc_ x -> Map.insertWith (+) x points acc_) acc xs
 
 
 

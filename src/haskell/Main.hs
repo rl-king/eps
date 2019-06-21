@@ -33,7 +33,7 @@ main = do
   let toMap =
         Map.fromList . fmap (\m -> (_mName m, m))
       packagesWithModules =
-        take 100 $ zipWith (\ms p -> p {_pModules = toMap ms}) modules packageList
+        take 400 $ zipWith (\ms p -> p {_pModules = toMap ms}) modules packageList
 
   -- Serve "/" "/search" "/search?term="
   Server.run packagesWithModules
