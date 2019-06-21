@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 module Data.Package where
 
+import qualified Data.Map.Strict as Map
+import Data.Map.Strict (Map)
 import Data.Aeson as Aeson
+import Data.Aeson.Types
 import Data.Text (Text)
-
 
 
 -- DEFINITIONS
@@ -17,41 +18,47 @@ type Type = Text
 
 
 data Package = Package
-  { packageName :: Name
-  , summary :: Text
-  , versions :: [Text]
-  , docs :: [Module]
+  { _pName :: Name
+  , _pSummary :: Text
+  , _pVersions :: [Text]
+  , _pModules :: Map Name Module
   } deriving (Show, Eq)
 
 
 data Module = Module
-  { moduleName :: Name
-  , comment :: Comment
-  , customTypes :: [CustomType]
-  , aliases :: [TypeAlias]
-  , values :: [Value]
-  , binops :: [Binop]
+  { _mName :: Name
+  , _mComment :: Comment
+  , _mDefs :: Map Name Def
   } deriving (Show, Eq)
 
 
-data TypeAlias =
-  TypeAlias Name Comment Arguments Type
+data Def
+  = TypeAlias Name Comment Arguments Type
+  | CustomType Name Comment Arguments [(Text, [Type])]
+  | Value_ Name Comment Type
+  | Binop Name Comment Type
   deriving (Show, Eq)
 
 
-data CustomType =
-  CustomType Name Comment Arguments [(Text, [Type])]
-  deriving (Show, Eq)
+comment :: Def -> Text
+comment def = case defInfo def of (_,c,_,_,_) -> c
 
 
-data Value_ =
-  Value_ Name Comment Type
-  deriving (Show, Eq)
+typeSig :: Def -> Text
+typeSig def = case defInfo def of (_,_,_,t,_) -> t
 
 
-data Binop =
-  Binop Name Comment Type
-  deriving (Show, Eq)
+category :: Def -> Text
+category def = case defInfo def of (_,_,_,_,c) -> c
+
+
+defInfo :: Def -> (Text, Text, Text, Text, Text)
+defInfo def =
+  case def of
+    TypeAlias n c a t -> (n, c, "", t, "Type alias")
+    CustomType n c a _ -> (n, c, "", "", "Custom type")
+    Value_ n c t -> (n, c, "", t, "Expression")
+    Binop n c t -> (n, c, "", t, "Binary operator")
 
 
 -- DECODERS
@@ -65,117 +72,59 @@ instance Aeson.FromJSON Package where
       <$> v .: "name"
       <*> v .: "summary"
       <*> v .: "versions"
-      <*> v .:? "docs" .!= [] -- Fallback to [] as this is not in search.json
+      <*> pure Map.empty
 
 
 instance Aeson.FromJSON Module where
   parseJSON =
-    Aeson.withObject "Module" $
-    \v ->
-      Module
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "unions"
-      <*> v .: "aliases"
-      <*> v .: "values"
-      <*> v .: "binops"
+    Aeson.withObject "Module" $ \v -> do
+      name <- v .: "name"
+      comment <- v .: "comment"
+      unions <- v .: "unions" >>= traverse parseUnion
+      aliases <- v .: "aliases" >>= traverse parseAlias
+      values <- v .: "values" >>= traverse parseValue
+      binops <- v .: "binops" >>= traverse parseBinop
+      return $ Module name comment
+        (Map.fromList $ unions ++ aliases ++ values ++ binops)
 
 
-instance Aeson.FromJSON TypeAlias where
-  parseJSON =
-    Aeson.withObject "TypeAlias" $
-    \v ->
-      TypeAlias
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "args"
-      <*> v .: "type"
+parseUnion :: Value -> Parser (Name, Def)
+parseUnion =
+  Aeson.withObject "Union" $
+  \v ->
+    (\n c a b -> (n, CustomType n c a b))
+    <$> v .: "name"
+    <*> v .: "comment"
+    <*> v .: "args"
+    <*> v .: "cases"
 
 
-instance Aeson.FromJSON CustomType where
-  parseJSON =
-    Aeson.withObject "CustomType" $
-    \v ->
-      CustomType
-      <$> v .: "name"
-      <*> v .: "comment"
-      <*> v .: "args"
-      <*> v .: "cases"
+parseAlias :: Value -> Parser (Name, Def)
+parseAlias =
+  Aeson.withObject "TypeAlias" $
+  \v ->
+    (\a b c d -> (a, TypeAlias a b c d))
+    <$> v .: "name"
+    <*> v .: "comment"
+    <*> v .: "args"
+    <*> v .: "type"
 
 
-instance Aeson.FromJSON Value_ where
-  parseJSON =
+parseValue :: Value -> Parser (Name, Def)
+parseValue =
     Aeson.withObject "Value_" $
     \v ->
-      Value_
+      (\a b c  -> (a, Value_ a b c ))
       <$> v .: "name"
       <*> v .: "comment"
       <*> v .: "type"
 
 
-instance Aeson.FromJSON Binop where
-  parseJSON =
+parseBinop :: Value -> Parser (Name, Def)
+parseBinop =
     Aeson.withObject "Binop" $
     \v ->
-      Binop
+      (\a b c -> (a, Binop a b c))
       <$> v .: "name"
       <*> v .: "comment"
       <*> v .: "type"
-
-
--- ENCODERS
-
-
-instance Aeson.ToJSON Package where
-    toJSON (Package x y z d) =
-      object ["name" .= x, "summary" .= y, "versions" .= z, "docs" .= d]
-    toEncoding (Package x y z d) =
-      pairs ("name" .= x <> "summary" .= y <> "versions" .= z <> "docs" .= d)
-
-
-instance Aeson.ToJSON Module where
-    toJSON (Module a b c d e f) =
-      object
-      [ "name" .= a
-      , "comment" .= b
-      , "unions" .= c
-      , "aliases" .= d
-      , "values" .= e
-      , "binops" .= f
-      ]
-    toEncoding (Module a b c d e f) =
-      pairs $
-      "name" .= a <>
-      "comment" .= b <>
-      "unions" .= c <>
-      "aliases" .= d <>
-      "values" .= e <>
-      "binops" .= f
-
-
-instance Aeson.ToJSON TypeAlias where
-    toJSON (TypeAlias a b c d) =
-      object ["name" .= a, "comment" .= b, "args" .= c, "type" .= d]
-    toEncoding (TypeAlias a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "type" .= d)
-
-
-instance Aeson.ToJSON CustomType where
-    toJSON (CustomType a b c d) =
-      object ["name" .= a, "comment" .= b, "args" .= c, "cases" .= d]
-    toEncoding (CustomType a b c d) =
-      pairs ("name" .= a <> "comment" .= b <> "args" .= c <> "cases" .= d)
-
-
-instance Aeson.ToJSON Value_ where
-    toJSON (Value_ a b c) =
-      object ["name" .= a, "comment" .= b, "type" .= c]
-    toEncoding (Value_ a b c) =
-      pairs ("name" .= a <> "comment" .= b <> "type" .= c)
-
-
-instance Aeson.ToJSON Binop where
-    toJSON (Binop a b c) =
-      object ["name" .= a, "comment" .= b, "type" .= c]
-    toEncoding (Binop a b c) =
-      pairs ("name" .= a <> "comment" .= b <> "type" .= c)

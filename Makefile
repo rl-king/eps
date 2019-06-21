@@ -6,10 +6,10 @@ clearcache:
 	@rm ./cache/*
 
 elm:
-	@elm make --debug ./src/elm/Main.elm --output=./index.html
+	@elm make ./src/elm/Main.elm --output=./main.js
 
 haskell:
-	@stack build
+	@stack build --fast
 
 help:
 	@echo "all -- compile haskell and elm"
@@ -23,4 +23,4 @@ server:
 	@stack exec eps
 
 watch:
-	@stack build --file-watch
+	@stack build --fast --file-watch

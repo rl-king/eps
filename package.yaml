@@ -16,15 +16,19 @@ description: Please see the README on GitHub at <https://github.com/rl-king/eps#
 
 dependencies:
   - base >= 4.7 && < 5
+  - directory
   - aeson
   - bytestring
   - containers
   - http-client
   - http-client-tls
-  - snap-core
-  - snap-server
+  - servant
+  - servant-server
   - text
-
+  - transformers
+  - wai
+  - wai-extra
+  - warp
 
 library:
   source-dirs: src/haskell
