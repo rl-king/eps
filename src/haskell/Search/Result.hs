@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Search.Result (packageRef, moduleRef, valueRef, toSearchResults, Info, Result) where
+module Search.Result (packageRef, moduleRef, valueRef, toSearchResults, Info(..), Result) where
 
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
@@ -60,7 +60,7 @@ toSearchResults packages =
   mapMaybe (toSearchResult packages)
 
 
-toSearchResult :: Map Text Package -> (Info, Int)-> Maybe Result
+toSearchResult :: Map Text Package -> (Info, Int) -> Maybe Result
 toSearchResult packages (ref, points) =
   case ref of
     PackageRef _pName ->

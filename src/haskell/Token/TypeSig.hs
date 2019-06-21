@@ -5,7 +5,6 @@ module Token.TypeSig (Tokens, Token, size, query, tokenize) where
 import qualified Data.List as List
 import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
-import qualified Data.Ord
 import qualified Data.Text as Text
 import Data.Map.Strict (Map)
 import Data.Text (Text)
@@ -37,10 +36,8 @@ size (Tokens tokens) =
 
 query :: Text -> Tokens -> [(Result.Info, Int)]
 query term (Tokens index) =
-  List.take 30 . List.sortOn (Data.Ord.Down . snd) .
-  Map.toList $ List.foldl lookupTokens Map.empty tokens
+  Map.toList . List.foldl lookupTokens Map.empty $ toTokens term
   where
-    tokens = toTokens term
     lookupTokens acc termPart =
       case Map.lookup termPart index of
         Nothing ->
@@ -72,7 +69,7 @@ extract package@Package{_pModules} =
         CustomType{} ->       acc
 
     toPair module_ typeName type_ =
-      List.map (\x -> (x ,[Result.valueRef package module_ typeName])) $
+      (\x -> (x ,[Result.valueRef package module_ typeName])) <$>
       toTokens type_
   in
     List.foldl toKeyValuePairs [] _pModules
@@ -86,12 +83,12 @@ toTokens :: Text -> [Token]
 toTokens =
   let
     removeModules =
-      List.map (last . Text.splitOn ".")
+      fmap (last . Text.splitOn ".")
 
     removeChars =
       Text.filter (not . flip elem ['(', ')', ',' , '}', '{'])
   in
-    List.map Token . countOccurrences . removeModules .
+    fmap Token . countOccurrences . removeModules .
     simplifyTypeVariables . Text.words . removeChars
 
 

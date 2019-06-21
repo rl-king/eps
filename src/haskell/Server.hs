@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeOperators #-}
 module Server where
 
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
 import Data.Map.Strict (Map)
@@ -54,7 +55,10 @@ server searchIndex packageMap =
 searchPackages :: Search.Index -> Map Name Package -> Maybe Text -> Handler [SR.Result]
 searchPackages searchIndex packageMap queryParam =
   case queryParam of
-    Just term ->
-      return $ Search.perform term packageMap searchIndex
+    Just term -> do
+      let (info, results) = Search.perform term packageMap searchIndex
+      liftIO $ mapM putStrLn info
+      liftIO $ putStrLn "============"
+      return results
     Nothing ->
       return []

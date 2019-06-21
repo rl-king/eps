@@ -14,7 +14,6 @@ module Token.Name
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
-import qualified Data.Ord
 import Data.Map.Strict (Map)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
@@ -51,18 +50,17 @@ keys (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [(Result.Info, Int)]
+query :: Text -> Tokens -> Map Result.Info Int
 query term (Tokens index) =
-  List.take 30 . List.sortOn (Data.Ord.Down . snd) .
-  Map.toList $ List.foldl lookupTokens Map.empty tokens
+  List.foldl lookupTokens Map.empty $
+  Token <$> Text.words term
   where
-    tokens = Token <$> Text.words term
     lookupTokens acc termPart =
       case Map.lookup termPart index of
         Nothing ->
           acc
         Just xs ->
-          List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
+          List.foldl (\acc_ x -> Map.insertWith (+) x 5 acc_) acc xs
 
 
 
@@ -99,7 +97,7 @@ extractModuleName package@Package{_pModules} =
     toKeyValuePairs module_@Module{_mName} =
       (Token _mName, [Result.moduleRef package module_])
   in
-    List.map toKeyValuePairs $ Map.elems _pModules
+    toKeyValuePairs <$> Map.elems _pModules
 
 
 

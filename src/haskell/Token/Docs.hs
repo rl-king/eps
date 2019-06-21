@@ -45,10 +45,16 @@ size (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [Result.Info]
-query term (Tokens idx) =
-  []
-
+query :: Text -> Tokens -> [(Result.Info, Int)]
+query term (Tokens index) =
+  Map.toList . List.foldl lookupTokens Map.empty $ toTokens term
+  where
+    lookupTokens acc termPart =
+      case Map.lookup termPart index of
+        Nothing ->
+          acc
+        Just xs ->
+          List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
 
 
 -- DOCS
@@ -66,7 +72,7 @@ extractSummary package@Package{_pSummary} =
     toPair token =
       (token, [Result.packageRef package])
   in
-    List.map toPair (toTokens _pSummary)
+    toPair <$> toTokens _pSummary
 
 
 
@@ -92,8 +98,8 @@ extractComments package@Package{_pModules} =
         Value_ n c _ ->       toPair module_ n c : acc
         CustomType n c _ _ -> toPair module_ n c : acc
 
-    toPair module_ typeName comment =
-      List.map (toPair_ module_ typeName) (toTokens comment)
+    toPair module_ typeName comment_ =
+      toPair_ module_ typeName <$> toTokens comment_
 
     toPair_ module_ typeName token =
       (token, [Result.valueRef package module_ typeName])
@@ -107,7 +113,7 @@ extractComments package@Package{_pModules} =
 
 toTokens :: Text -> [Token]
 toTokens =
-  List.map Token . List.nub . Stem.run . filterStopWords .
+  fmap Token . List.nub . Stem.run . filterStopWords .
   Text.words . Text.toLower . filterPunctuation
 
 
@@ -118,7 +124,7 @@ filterPunctuation =
 
 punctuation  :: Set Char
 punctuation =
-  Set.fromList [ '.' , ',']
+  Set.fromList ['.' , ',']
 
 
 filterStopWords :: [Text] -> [Text]
