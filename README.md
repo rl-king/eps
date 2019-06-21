@@ -1,19 +1,9 @@
 # eps
 
-## Todo
-* Filter code out of docs
-* Stem text for indexing
-* Extract factual information to help rank packages
-  * How complete are the docs
-    * Examples
-  * Does it have tests
-  * Dependencies
-* Maybe add more endpoints with indexed information
-* Search for uses of a data type
-
-
 ## Getting started
-Most recent work is on `dev` branch
+Run `make haskell` to build and `make server` to start the server.
+`make server` will check `./cache` directory for package files and
+fetch those if missing.
 
 ```
 all -- compile haskell and elm
@@ -23,6 +13,16 @@ haskell -- compile haskell
 server -- start haskell server
 watch -- watch haskell files and compile on change
 ```
+
+## Todo
+* Filter code out of docs
+* Extract factual information to help rank packages
+  * How complete are the docs
+    * Examples
+  * Does it have tests
+  * Dependencies
+* Maybe add more endpoints with indexed information
+* Search for uses of a data type
 
 ## Typeface
 https://github.com/be5invis/Iosevka
