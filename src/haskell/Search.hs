@@ -1,22 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Search where
+module Search (buildIndex, indexStats, perform, Index) where
 
 import Data.Foldable
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
-import qualified Data.Text as Text
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
-import Search.Result as Search
 import qualified Token.Docs as Docs
 import qualified Token.TypeSig as TypeSig
 import qualified Token.Name as Name
 import Data.Package (Package)
 import qualified Search.Result as Result
-import Search.Result
+import Search.Result (Result)
 
 
 
@@ -34,8 +31,8 @@ data Index =
   }
 
 
-index :: [Package] -> Index
-index packages = Index
+buildIndex :: [Package] -> Index
+buildIndex packages = Index
   (TypeSig.tokenize packages)
   (Name.tokenizeValueNames packages)
   (Name.tokenizeModuleNames packages)
@@ -44,8 +41,8 @@ index packages = Index
   (Docs.tokenizeComments packages)
 
 
-info :: Index -> IO ()
-info (Index ts vn mn pn d c) =
+indexStats :: Index -> IO ()
+indexStats (Index ts vn mn pn d c) =
   traverse_ print
     [ show (TypeSig.size ts) ++ " : indexed type signatures"
     , show (Name.size vn) ++ " : indexed value names"

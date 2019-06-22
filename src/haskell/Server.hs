@@ -30,13 +30,13 @@ api = Proxy
 run :: [Package] -> IO ()
 run packages = do
   let port = 8080
-      searchIndex = Search.index packages
+      searchIndex = Search.buildIndex packages
       packageMap = Map.fromList $ (\p -> (_pName p, p)) <$> packages
       settings =
         setPort port $
         setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
         defaultSettings
-  Search.info searchIndex
+  Search.indexStats searchIndex
   runSettings settings =<< mkApp searchIndex packageMap
 
 
@@ -57,8 +57,8 @@ searchPackages searchIndex packageMap queryParam =
   case queryParam of
     Just term -> do
       let (info, results) = Search.perform term packageMap searchIndex
-      liftIO $ mapM putStrLn info
-      liftIO $ putStrLn "============"
+      _ <- liftIO $ mapM putStrLn info
+      _ <- liftIO $ putStrLn "============"
       return results
     Nothing ->
       return []
