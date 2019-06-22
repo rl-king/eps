@@ -25,7 +25,9 @@ import Http
 import Json.Decode as Decode
 import Markdown
 import ModularScale
+import Process
 import String.Interpolate exposing (interpolate)
+import Task
 import Url exposing (Url)
 
 
@@ -53,6 +55,7 @@ type alias Model =
     { key : Browser.Navigation.Key
     , searchResults : Maybe (Result Http.Error (List SearchResult))
     , searchTerm : String
+    , bounce : Maybe Int
     }
 
 
@@ -61,6 +64,7 @@ init _ location key =
     ( { key = key
       , searchResults = Nothing
       , searchTerm = "(a -> b) -> Maybe a -> Maybe b"
+      , bounce = Nothing
       }
     , requestSearchTerm "(a -> b) -> Maybe a -> Maybe b"
     )
@@ -74,7 +78,7 @@ type Msg
     = OnUrlChange Url
     | OnUrlRequest Browser.UrlRequest
     | OnSearchTermInput String
-    | PerformSearch
+    | PerformSearch Int
     | GotSearchResults (Result Http.Error (List SearchResult))
 
 
@@ -91,12 +95,29 @@ update msg model =
             ( model, Browser.Navigation.load href )
 
         OnSearchTermInput searchTerm ->
-            ( { model | searchTerm = searchTerm }
-            , requestSearchTerm searchTerm
-            )
+            case model.bounce of
+                Nothing ->
+                    ( { model | searchTerm = searchTerm, bounce = Just 0 }
+                    , Task.perform (\_ -> PerformSearch 0) (Process.sleep 350)
+                    )
 
-        PerformSearch ->
-            ( model, requestSearchTerm model.searchTerm )
+                Just id ->
+                    ( { model | searchTerm = searchTerm, bounce = Just (id + 1) }
+                    , Task.perform (\_ -> PerformSearch (id + 1)) (Process.sleep 450)
+                    )
+
+        PerformSearch id ->
+            case Maybe.map ((==) id) model.bounce of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just False ->
+                    ( model, Cmd.none )
+
+                Just True ->
+                    ( { model | bounce = Nothing }
+                    , requestSearchTerm model.searchTerm
+                    )
 
         GotSearchResults result ->
             ( { model | searchResults = Just result }, Cmd.none )
@@ -140,7 +161,8 @@ viewHeader model =
             , placeholder "(a -> b) -> Maybe a -> Maybe b, ..."
             ]
             []
-        , button [ onClick PerformSearch, css styling.button ] [ text "search" ]
+
+        -- , button [ onClick PerformSearch, css styling.button ] [ text "search" ]
         ]
 
 

@@ -6,7 +6,7 @@ module Main (main) where
 
 import Control.Monad (unless)
 import Control.Monad.IO.Class (liftIO)
-import Control.Concurrent.STM.TVar (TVar, newTVar, readTVar, modifyTVar, writeTVar)
+import Control.Concurrent.STM.TVar (TVar, newTVar, readTVar, modifyTVar', writeTVar)
 import Control.Concurrent (forkIO)
 import Control.Monad.STM (atomically)
 
@@ -86,7 +86,7 @@ runIndex State{_sIndex, _sPackages} = do
       toModulesMap =
         Map.fromList . fmap (\m -> (_mName m, m))
 
-  _ <- traverse (\p -> atomically $ modifyTVar _sIndex (Search.insert p)) packagesWithModules
+  _ <- traverse (atomically . modifyTVar' _sIndex . Search.insert) packagesWithModules
   _ <- atomically $ writeTVar _sPackages packagesAsMap
   return ()
 
