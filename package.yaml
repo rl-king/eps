@@ -32,9 +32,6 @@ dependencies:
 
 library:
   source-dirs: src/haskell
-  exposed-modules:
-    Main
-
 
 executables:
   eps:

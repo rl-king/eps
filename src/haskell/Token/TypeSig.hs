@@ -1,6 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Token.TypeSig (Tokens, Token, size, query, tokenize) where
+module Token.TypeSig
+  ( Tokens
+  , Token
+  , size
+  , toList
+  , query
+  , tokenize
+  , toTokens
+  ) where
 
 import qualified Data.List as List
 import qualified Data.Char as Char
@@ -91,6 +99,10 @@ toTokens =
     fmap Token . countOccurrences . removeModules .
     simplifyTypeVariables . Text.words . removeChars
 
+
+toList :: [Token] -> [(Text, Int)]
+toList =
+  fmap token
 
 
 {-|

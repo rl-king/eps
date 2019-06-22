@@ -1,4 +1,5 @@
 # eps
+[![Build Status](https://travis-ci.org/rl-king/eps.svg?branch=master)](https://travis-ci.org/rl-king/eps)
 
 ## Getting started
 Run `make haskell` to build and `make server` to start the server.

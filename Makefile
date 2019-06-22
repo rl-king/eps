@@ -1,5 +1,7 @@
 default: help
 
+.PHONY: test
+
 all: haskell elm
 
 clearcache:
@@ -21,6 +23,9 @@ help:
 
 server:
 	@stack exec eps
+
+test:
+	@stack test --fast
 
 watch:
 	@stack build --fast --file-watch
