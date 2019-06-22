@@ -3,6 +3,7 @@
 module Token.Name
   ( Tokens
   , Token
+  , empty
   , size
   , keys
   , query
@@ -37,6 +38,11 @@ newtype Token =
   deriving (Eq, Ord, Show)
 
 
+empty :: Tokens
+empty =
+  Tokens Map.empty
+
+
 size :: Tokens -> Int
 size (Tokens tokens) =
   Map.size tokens
@@ -67,9 +73,9 @@ query term points (Tokens index) =
 -- PACKAGE NAMES
 
 
-tokenizePackageNames :: [Package] -> Tokens
-tokenizePackageNames =
-  Tokens . Map.fromListWith (++) . mapMaybe extractPackageName
+tokenizePackageNames :: Package -> Tokens -> Tokens
+tokenizePackageNames package (Tokens tokens) =
+  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractPackageName package)
 
 
 extractPackageName :: Package -> Maybe (Token, [Result.Info])
@@ -86,9 +92,9 @@ extractPackageName package@Package{_pName} =
 -- MODULE NAMES
 
 
-tokenizeModuleNames :: [Package] -> Tokens
-tokenizeModuleNames =
-  Tokens . Map.fromListWith (++) . concatMap extractModuleName
+tokenizeModuleNames :: Package -> Tokens -> Tokens
+tokenizeModuleNames package (Tokens tokens) =
+  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractModuleName package)
 
 
 extractModuleName :: Package -> [(Token, [Result.Info])]
@@ -104,9 +110,9 @@ extractModuleName package@Package{_pModules} =
 -- VALUE NAMES
 
 
-tokenizeValueNames :: [Package] -> Tokens
-tokenizeValueNames =
-  Tokens . Map.fromListWith (++) . concatMap extractValueName
+tokenizeValueNames :: Package -> Tokens -> Tokens
+tokenizeValueNames package (Tokens tokens) =
+  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractValueName package)
 
 
 extractValueName :: Package -> [(Token, [Result.Info])]

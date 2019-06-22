@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Search (buildIndex, indexStats, perform, Index) where
+module Search (emptyIndex, insert, indexStats, perform, Index) where
 
 import Data.Foldable
 import qualified Data.List as List
@@ -31,14 +31,26 @@ data Index =
   }
 
 
-buildIndex :: [Package] -> Index
-buildIndex packages = Index
-  (TypeSig.tokenize packages)
-  (Name.tokenizeValueNames packages)
-  (Name.tokenizeModuleNames packages)
-  (Name.tokenizePackageNames packages)
-  (Docs.tokenizeSummaries packages)
-  (Docs.tokenizeComments packages)
+insert :: Package -> Index -> Index
+insert package (Index ts vn mn pn d c) =
+  Index
+  (TypeSig.tokenize package ts)
+  (Name.tokenizeValueNames package vn)
+  (Name.tokenizeModuleNames package mn)
+  (Name.tokenizePackageNames package pn)
+  (Docs.tokenizeSummaries package d)
+  (Docs.tokenizeComments package c)
+
+
+emptyIndex :: Index
+emptyIndex =
+  Index
+  TypeSig.empty
+  Name.empty
+  Name.empty
+  Name.empty
+  Docs.empty
+  Docs.empty
 
 
 indexStats :: Index -> IO ()

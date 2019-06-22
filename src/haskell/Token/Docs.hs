@@ -3,6 +3,7 @@
 module Token.Docs
   ( Tokens
   , Token
+  , empty
   , size
   , query
   , tokenizeSummaries
@@ -37,6 +38,11 @@ newtype Token =
   deriving (Eq, Ord, Show)
 
 
+empty :: Tokens
+empty =
+  Tokens Map.empty
+
+
 size :: Tokens -> Int
 size (Tokens tokens) =
   Map.size tokens
@@ -60,10 +66,9 @@ query term (Tokens index) =
 -- DOCS
 
 
-tokenizeSummaries :: [Package] -> Tokens
-tokenizeSummaries =
-  -- Map.filter ((>) 400 . length) .
-  Tokens . Map.fromListWith (++) . concatMap extractSummary
+tokenizeSummaries :: Package -> Tokens -> Tokens
+tokenizeSummaries package (Tokens tokens) =
+  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractSummary package)
 
 
 extractSummary :: Package -> [(Token, [Result.Info])]
@@ -79,10 +84,9 @@ extractSummary package@Package{_pSummary} =
 -- COMMENTS
 
 
-tokenizeComments :: [Package] -> Tokens
-tokenizeComments =
-  -- Map.filter ((>) 400 . length) .
-  Tokens . Map.fromListWith (++) . concatMap extractComments
+tokenizeComments :: Package -> Tokens -> Tokens
+tokenizeComments package (Tokens tokens) =
+  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractComments package)
 
 
 extractComments :: Package -> [(Token, [Result.Info])]

@@ -3,6 +3,7 @@
 module Token.TypeSig
   ( Tokens
   , Token
+  , empty
   , size
   , toList
   , query
@@ -21,6 +22,7 @@ import Data.Package as Package
 import qualified Search.Result as Result
 
 
+
 -- DEFINITIONS
 
 
@@ -32,6 +34,11 @@ newtype Tokens =
 newtype Token =
   Token { token :: (Text, Int)}
   deriving (Eq, Ord, Show)
+
+
+empty :: Tokens
+empty =
+  Tokens Map.empty
 
 
 size :: Tokens -> Int
@@ -58,9 +65,9 @@ query term (Tokens index) =
 -- FUNCTION SIGNATURES
 
 
-tokenize :: [Package] -> Tokens
-tokenize =
-  Tokens . Map.fromListWith (++) . concatMap extract
+tokenize :: Package -> Tokens -> Tokens
+tokenize package (Tokens tokens) =
+  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extract package)
 
 
 extract :: Package -> [(Token, [Result.Info])]
