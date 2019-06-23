@@ -14,7 +14,6 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import Data.Aeson as Aeson
-import Data.List
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
@@ -22,7 +21,6 @@ import qualified Network.HTTP.Client as Http
 import qualified Network.HTTP.Client.TLS as TLS
 import Network.Wai.Handler.Warp
 import Servant
-import System.Directory
 import qualified System.Environment as Env
 import System.IO
 
@@ -123,10 +121,11 @@ fetchPackages =
 fetchPackageList :: IO [Package]
 fetchPackageList = do
   m <- Http.newManager TLS.tlsManagerSettings
-  response <- request m "https://package.elm-lang.org/search.json"
+  -- response <- request m "https://package.elm-lang.org/search.json"
+  response <- request m "http://localhost:8080/cache/search.json"
   case Aeson.eitherDecode (Http.responseBody response) :: Either String [Package] of
     Left err -> error err
-    Right packages -> return $ take 5 packages
+    Right packages -> return $ take 250 packages
 
 
 fetchModules :: Package -> IO Package
@@ -141,7 +140,8 @@ fetchModules package = do
   where
     toLatestVersionDocUrl Package{_pName, _pVersions} =
       Text.unpack $ Text.intercalate "/"
-      ["https://package.elm-lang.org/packages", _pName, last _pVersions, "docs.json"]
+      ["http://localhost:8080/cache", _pName, last _pVersions, "docs.json"]
+      -- ["https://package.elm-lang.org/packages", _pName, last _pVersions, "docs.json"]
 
 
 -- REQUEST
