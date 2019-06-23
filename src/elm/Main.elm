@@ -139,45 +139,53 @@ viewBody model =
     main_ [ css styling.main ]
         [ global globalStyling
         , viewHeader model
-        , section [ css styling.content ]
-            [ div [ css styling.sidebar ]
-                [ h2 [] [ text "packages" ]
-                , h2 [] [ text "modules" ]
-                ]
-            , viewResults model
-            ]
+        , section [ css styling.content ] (viewResults model)
         ]
 
 
 viewHeader : Model -> Html Msg
 viewHeader model =
     header [ css styling.header ]
-        [ h1 [ css styling.title ] [ text "eps" ]
-        , input
-            [ onInput OnSearchTermInput
-            , css styling.input
-            , autofocus True
-            , value model.searchTerm
-            , placeholder "(a -> b) -> Maybe a -> Maybe b, ..."
+        [ h1 [ css styling.title ] [ text "EPS beta" ]
+        , form []
+            [ label [] [ text "Search" ]
+            , input
+                [ onInput OnSearchTermInput
+                , css styling.input
+                , autofocus True
+                , value model.searchTerm
+                , placeholder "(a -> b) -> Maybe a -> Maybe b, ..."
+                ]
+                []
             ]
-            []
 
         -- , button [ onClick PerformSearch, css styling.button ] [ text "search" ]
         ]
 
 
-viewResults : Model -> Html Msg
+viewResults : Model -> List (Html Msg)
 viewResults model =
     case model.searchResults of
         Just (Ok results) ->
-            ul [ css styling.searchResults ] <|
+            [ div [ css styling.sidebar ]
+                [ h2 [] [ text "Packages" ]
+                , ul [] <|
+                    List.map (\p -> li [] [ text p.packageName ]) <|
+                        List.filter ((==) Package << .category) results
+                , h2 [] [ text "Modules" ]
+                , ul [] <|
+                    List.map (\p -> li [] [ text p.packageName ]) <|
+                        List.filter ((==) Module << .category) results
+                ]
+            , ul [ css styling.searchResults ] <|
                 List.map viewResult results
+            ]
 
         Just (Err (Http.BadPayload err _)) ->
-            Html.Styled.pre [] [ text err ]
+            [ Html.Styled.pre [] [ text err ] ]
 
         _ ->
-            Html.Styled.pre [] [ text "loading" ]
+            [ h2 [] [ text "loading" ] ]
 
 
 viewResult : SearchResult -> Html Msg
@@ -232,8 +240,9 @@ viewResult result =
                             [ css styling.searchResultPackageName ]
                             [ text result.packageName ]
                         , viewResultCategory result.category
-                        , text (String.fromInt result.points)
                         ]
+                    , span [ css styling.points ]
+                        [ text (String.fromInt result.points) ]
                     ]
                 ]
 
@@ -321,13 +330,13 @@ colors =
 
 font =
     { mono =
-        [ "Iosevka SS08 Web"
+        [ "SF Mono"
         , "monospace"
         ]
     , text =
-        [ "Helvetica Neue"
-        , "-apple-system"
+        [ "-apple-system"
         , "BlinkMacSystemFont"
+        , "Helvetica Neue"
         , "Segoe UI"
         , "Roboto"
         , "Oxygen"
@@ -349,64 +358,60 @@ styling =
         , fontSize (ms 1)
         , margin zero
         , height (rem 2)
-        , position absolute
-        , left (rem 2)
-        , top (rem 2)
+        , width (rem 15)
         ]
     , header =
         [ width (pct 100)
-        , padding (rem 1)
-        , backgroundColor colors.sand
+        , padding (rem 2)
         , height (rem 6)
         , displayFlex
-        , justifyContent center
-        , alignItems center
+        , margin2 zero auto
+        , maxWidth (rem 70)
         ]
     , input =
-        [ width (rem 30)
-        , border3 (px 1) solid colors.sandDarker
-        , height (rem 2)
+        [ Breakpoint.small
+            [ height (rem 3.5)
+            , padding2 (rem 0.15) (rem 1)
+            ]
+        , width (rem 30)
+        , border zero
+        , backgroundColor colors.grey
+        , height (rem 3)
         , fontSize (ms 1)
         , padding (rem 0.5)
         , property "-webkit-appearance" "none"
         , borderRadius (px 2)
         , fontFamilies font.mono
-        , Breakpoint.small
-            [ height (rem 2.5)
-            , padding2 (rem 0.15) (rem 0.5)
-            ]
         ]
     , content =
         [ displayFlex
         , maxWidth (rem 70)
         , margin2 zero auto
-        , padding (rem 2)
+        , padding2 (rem 4) (rem 2)
         ]
     , sidebar =
-        [ width (rem 20)
+        [ width (rem 15)
         ]
     , searchResults =
-        [ width (pct 100)
+        [ flexGrow (int 1)
+        , width (calc (pct 100) minus (rem 20))
         ]
     , searchResult =
         [ marginBottom (rem 1)
         , width (pct 100)
         , borderRadius (px 2)
+        , border3 (px 1) solid colors.grey
+        , padding (rem 1)
+        , position relative
         ]
     , searchResultHeader =
-        [ backgroundColor colors.sand
-
-        -- , height (ms 6)
-        , padding2 (rem 0.5) (rem 1)
-        , displayFlex
+        [ displayFlex
         , alignItems center
         ]
     , searchResultBody =
-        [ padding2 (rem 0.5) (rem 1) ]
+        []
     , searchResultFooter =
-        [ fontFamilies font.mono
-        , fontSize (ms 0)
-        , displayFlex
+        [ displayFlex
         , justifyContent spaceBetween
         , alignItems flexEnd
         , marginTop (rem 1)
@@ -434,6 +439,11 @@ styling =
         , padding2 zero (rem 1)
         , display none
         ]
+    , points =
+        [ position absolute
+        , right (rem 1)
+        , top (rem 1)
+        ]
     }
 
 
@@ -454,7 +464,7 @@ globalStyling =
     , Global.ul
         [ listStyle none
         , padding zero
-        , margin zero
+        , margin3 zero zero (rem 2)
         ]
     , Global.code
         [ fontSize (ms 0)
@@ -466,9 +476,9 @@ globalStyling =
         [ margin3 (rem 0.15) zero (rem 0.25)
         ]
     , Global.h2
-        [ margin3 (rem 0.15) zero (rem 0.25)
+        [ margin3 (rem 0.15) zero (rem 0.5)
         , fontSize (ms 1)
-        , fontWeight (int 400)
+        , fontWeight (int 500)
         ]
     , Global.pre
         [ padding (rem 2)
@@ -484,6 +494,11 @@ globalStyling =
         , width (pct 100)
         , margin2 (rem 1) zero
         , display none
+        ]
+    , Global.label
+        [ display block
+        , marginBottom (rem 1)
+        , fontWeight (int 500)
         ]
     , Global.class "markdown"
         [ overflow hidden
