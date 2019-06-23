@@ -63,10 +63,10 @@ init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
     ( { key = key
       , searchResults = Nothing
-      , searchTerm = "(a -> b) -> Maybe a -> Maybe b"
+      , searchTerm = "core Maybe"
       , bounce = Nothing
       }
-    , requestSearchTerm "(a -> b) -> Maybe a -> Maybe b"
+    , requestSearchTerm "core Maybe"
     )
 
 
@@ -182,23 +182,60 @@ viewResults model =
 
 viewResult : SearchResult -> Html Msg
 viewResult result =
-    div [ css styling.searchResult ]
-        [ header [ css styling.searchResultHeader ]
-            [ link ValueLink result [] [ viewResultSignature result ]
-            ]
-        , div [ css styling.searchResultBody ]
-            -- [ fromUnstyled <|
-            --     Markdown.toHtml [ Html.Attributes.class "markdown" ] result.valueComment
-            [ footer [ css styling.searchResultFooter ]
-                [ link PackageLink
-                    result
-                    [ css styling.searchResultPackageName ]
-                    [ text result.packageName ]
-                , viewResultCategory result.category
-                , text (String.fromInt result.points)
+    case result.category of
+        Package ->
+            div [ css styling.searchResult ]
+                [ header [ css styling.searchResultHeader ]
+                    [ link PackageLink
+                        result
+                        [ css styling.searchResultPackageName ]
+                        [ text result.packageName ]
+                    ]
+                , div [ css styling.searchResultBody ]
+                    -- [ fromUnstyled <|
+                    --     Markdown.toHtml [ Html.Attributes.class "markdown" ]
+                    -- result.valueComment
+                    [ footer [ css styling.searchResultFooter ]
+                        [ viewResultCategory result.category
+                        , text (String.fromInt result.points)
+                        ]
+
+                    -- ]
+                    ]
                 ]
-            ]
-        ]
+
+        Module ->
+            div [ css styling.searchResult ]
+                [ header [ css styling.searchResultHeader ]
+                    [ link ModuleLink
+                        result
+                        [ css styling.searchResultPackageName ]
+                        [ text result.moduleName ]
+                    ]
+                , div [ css styling.searchResultBody ]
+                    [ footer [ css styling.searchResultFooter ]
+                        [ viewResultCategory result.category
+                        , text (String.fromInt result.points)
+                        ]
+                    ]
+                ]
+
+        Expression _ ->
+            div [ css styling.searchResult ]
+                [ header [ css styling.searchResultHeader ]
+                    [ link ValueLink result [] [ viewResultSignature result ]
+                    ]
+                , div [ css styling.searchResultBody ]
+                    [ footer [ css styling.searchResultFooter ]
+                        [ link PackageLink
+                            result
+                            [ css styling.searchResultPackageName ]
+                            [ text result.packageName ]
+                        , viewResultCategory result.category
+                        , text (String.fromInt result.points)
+                        ]
+                    ]
+                ]
 
 
 viewResultSignature : SearchResult -> Html Msg
