@@ -15,6 +15,7 @@ import qualified Data.List as List
 import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
+import Data.List (foldl')
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
@@ -51,14 +52,14 @@ size (Tokens tokens) =
 
 query :: Text -> Tokens -> [(Result.Info, Int)]
 query term (Tokens index) =
-  Map.toList . List.foldl lookupTokens Map.empty $ toTokens term
+  Map.toList . List.foldl' lookupTokens Map.empty $ toTokens term
   where
     lookupTokens acc termPart =
       case Map.lookup termPart index of
         Nothing ->
           acc
         Just xs ->
-          List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
+          List.foldl' (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
 
 
 
@@ -67,14 +68,14 @@ query term (Tokens index) =
 
 tokenize :: Package -> Tokens -> Tokens
 tokenize package (Tokens tokens) =
-  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extract package)
+  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extract package)
 
 
 extract :: Package -> [(Token, [Result.Info])]
 extract package@Package{_pModules} =
   let
     toKeyValuePairs acc module_@Module{_mDefs} =
-      List.foldl (toInfo module_) [] (Map.elems _mDefs) ++ acc
+      List.foldl' (toInfo module_) [] (Map.elems _mDefs) ++ acc
 
     toInfo module_ acc def =
       case def of
@@ -87,7 +88,7 @@ extract package@Package{_pModules} =
       (\x -> (x ,[Result.valueRef package module_ typeName])) <$>
       toTokens type_
   in
-    List.foldl toKeyValuePairs [] _pModules
+    List.foldl' toKeyValuePairs [] _pModules
 
 
 {-|
@@ -142,4 +143,4 @@ isReserved type_ =
 
 countOccurrences :: Ord a => [a] -> [(a, Int)]
 countOccurrences =
-  Map.toList . List.foldl (\acc k -> Map.insertWith (+) k 1 acc) Map.empty
+  Map.toList . List.foldl' (\acc k -> Map.insertWith (+) k 1 acc) Map.empty

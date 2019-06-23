@@ -15,6 +15,7 @@ module Token.Name
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
+import Data.List (foldl')
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
@@ -56,7 +57,7 @@ keys (Tokens tokens) =
 
 query :: Text -> Int -> Tokens -> Map Result.Info Int
 query term points (Tokens index) =
-  List.foldl lookupTokens Map.empty $
+  List.foldl' lookupTokens Map.empty $
   Token <$> Text.words term
   where
     lookupTokens acc termPart =
@@ -64,7 +65,7 @@ query term points (Tokens index) =
         Nothing ->
           acc
         Just xs ->
-          List.foldl (\acc_ x -> Map.insertWith (+) x points acc_) acc xs
+          List.foldl' (\acc_ x -> Map.insertWith (+) x points acc_) acc xs
 
 
 
@@ -73,7 +74,7 @@ query term points (Tokens index) =
 
 tokenizePackageNames :: Package -> Tokens -> Tokens
 tokenizePackageNames package (Tokens tokens) =
-  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractPackageName package)
+  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractPackageName package)
 
 
 extractPackageName :: Package -> Maybe (Token, [Result.Info])
@@ -92,7 +93,7 @@ extractPackageName package@Package{_pName} =
 
 tokenizeModuleNames :: Package -> Tokens -> Tokens
 tokenizeModuleNames package (Tokens tokens) =
-  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractModuleName package)
+  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractModuleName package)
 
 
 extractModuleName :: Package -> [(Token, [Result.Info])]
@@ -110,14 +111,14 @@ extractModuleName package@Package{_pModules} =
 
 tokenizeValueNames :: Package -> Tokens -> Tokens
 tokenizeValueNames package (Tokens tokens) =
-  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractValueName package)
+  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractValueName package)
 
 
 extractValueName :: Package -> [(Token, [Result.Info])]
 extractValueName package@Package{_pModules} =
   let
     toKeyValuePairs acc module_@Module{_mDefs} =
-      List.foldl (toInfo module_) [] (Map.elems _mDefs) ++ acc
+      List.foldl' (toInfo module_) [] (Map.elems _mDefs) ++ acc
 
     toInfo module_ acc def =
       case def of
@@ -129,4 +130,4 @@ extractValueName package@Package{_pModules} =
     toPair module_ typeName =
       (Token typeName, [Result.valueRef package module_ typeName])
   in
-    List.foldl toKeyValuePairs [] _pModules
+    List.foldl' toKeyValuePairs [] _pModules

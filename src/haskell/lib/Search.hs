@@ -5,6 +5,8 @@ module Search (emptyIndex, insert, indexStats, perform, Index) where
 import Data.Foldable
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import qualified Data.Ord as Ord
+import qualified Data.Text as Text
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 
@@ -72,8 +74,8 @@ perform :: Text -> Map Text Package -> Index -> ([String], [Result])
 perform term packages index =
   let
     packageNames = Name.query term 10 (_iPackageNames index)
-    moduleNames = Name.query term 5 (_iModuleNames index)
-    defNames = Name.query term 7 (_iDefNames index)
+    moduleNames = Name.query term 8 (_iModuleNames index)
+    defNames = Name.query term 6 (_iDefNames index)
     summaries = Docs.query term (_iSummaries index)
     comments = Docs.query term (_iComments index)
     typeSigs = TypeSig.query term (_iTypeSignatures index)
@@ -86,16 +88,27 @@ perform term packages index =
       , show (length typeSigs) ++ " : type sigs"
       ]
   in
-    ( info
-    , Result.toSearchResults packages
-      . take 10
-      . reverse
-      . List.sortOn snd
-      $ Map.toList packageNames
-      ++ Map.toList moduleNames
-      ++ rank packageNames moduleNames (Map.toList defNames)
-      ++ rank packageNames moduleNames typeSigs
-    )
+    case toScope term of
+      TypeSigs ->
+        ( "TYPESIGS":info
+        , Result.toSearchResults packages . take 10 . List.sortOn (Ord.Down . snd)
+          $ Map.toList packageNames ++ Map.toList moduleNames
+          ++ rank packageNames moduleNames (Map.toList defNames)
+          ++ rank packageNames moduleNames typeSigs
+        )
+      ModulesAndPackages ->
+        ( "MODULES AND PACKAGES":info
+        , Result.toSearchResults packages . take 10 . List.sortOn (Ord.Down . snd)
+          $ Map.toList packageNames ++ Map.toList moduleNames
+          ++ rank packageNames moduleNames (Map.toList defNames)
+        )
+      Rest ->
+        ( "REST":info
+        , Result.toSearchResults packages . take 10 . List.sortOn (Ord.Down . snd)
+          $ Map.toList packageNames ++ Map.toList moduleNames
+          ++ Map.toList comments ++ Map.toList summaries
+          ++ rank packageNames moduleNames (Map.toList defNames)
+        )
 
 
 rank ::
@@ -120,3 +133,19 @@ rank packages modules typeSigs =
               (False, False) -> (info, points)
         _ ->
           (info, points)
+
+
+-- SCOPE
+
+
+data Scope
+  = TypeSigs
+  | ModulesAndPackages
+  | Rest
+
+
+toScope :: Text -> Scope
+toScope query
+  | Text.isInfixOf "->" query = TypeSigs
+  | Text.toLower query /= query = ModulesAndPackages
+  | otherwise = Rest

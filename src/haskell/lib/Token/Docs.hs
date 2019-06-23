@@ -15,6 +15,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Data.Map.Strict (Map)
+import Data.List (foldl')
 import Data.Set (Set)
 import Data.Text (Text)
 
@@ -50,16 +51,16 @@ size (Tokens tokens) =
 -- QUERY
 
 
-query :: Text -> Tokens -> [(Result.Info, Int)]
+query :: Text -> Tokens -> Map Result.Info Int
 query term (Tokens index) =
-  Map.toList . List.foldl lookupTokens Map.empty $ toTokens term
+  List.foldl' lookupTokens Map.empty $ toTokens term
   where
     lookupTokens acc termPart =
       case Map.lookup termPart index of
         Nothing ->
           acc
         Just xs ->
-          List.foldl (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
+          List.foldl' (\acc_ x -> Map.insertWith (+) x 1 acc_) acc xs
 
 
 -- DOCS
@@ -67,7 +68,7 @@ query term (Tokens index) =
 
 tokenizeSummaries :: Package -> Tokens -> Tokens
 tokenizeSummaries package (Tokens tokens) =
-  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractSummary package)
+  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractSummary package)
 
 
 extractSummary :: Package -> [(Token, [Result.Info])]
@@ -85,14 +86,14 @@ extractSummary package@Package{_pSummary} =
 
 tokenizeComments :: Package -> Tokens -> Tokens
 tokenizeComments package (Tokens tokens) =
-  Tokens $ foldl (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractComments package)
+  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractComments package)
 
 
 extractComments :: Package -> [(Token, [Result.Info])]
 extractComments package@Package{_pModules} =
   let
     toComments acc module_@Module{_mDefs} =
-      List.foldl (toInfo module_) [] (Map.elems _mDefs) ++ acc
+      List.foldl' (toInfo module_) [] (Map.elems _mDefs) ++ acc
 
     toInfo module_ acc def =
       case def of
@@ -107,7 +108,7 @@ extractComments package@Package{_pModules} =
     toPair_ module_ typeName token =
       (token, [Result.valueRef package module_ typeName])
   in
-    concat $ List.foldl toComments [] _pModules
+    concat $ List.foldl' toComments [] _pModules
 
 
 
