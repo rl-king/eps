@@ -16,12 +16,10 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import Data.Map.Strict (Map)
-import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 
 import Data.Package as Package
 import qualified Search.Result as Result
-import Search.Result
 
 
 

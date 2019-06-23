@@ -20,7 +20,6 @@ import Data.Text (Text)
 
 import Data.Package as Package
 import qualified Search.Result as Result
-import Search.Result
 import qualified NLP.Stemmer as Stem
 
 

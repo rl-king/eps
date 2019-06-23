@@ -31,12 +31,12 @@ dependencies:
   - warp
 
 library:
-  source-dirs: src/haskell
+  source-dirs: src/haskell/lib
 
 executables:
   eps:
     main: Main.hs
-    source-dirs: src/haskell
+    source-dirs: src/haskell/app
     ghc-options:
       - -threaded
       - -rtsopts

@@ -55,8 +55,8 @@ category def = case defInfo def of (_,_,_,_,c) -> c
 defInfo :: Def -> (Text, Text, Text, Text, Text)
 defInfo def =
   case def of
-    TypeAlias n c a t -> (n, c, "", t, "Type alias")
-    CustomType n c a _ -> (n, c, "", "", "Custom type")
+    TypeAlias n c _ t -> (n, c, "", t, "Type alias")
+    CustomType n c _ _ -> (n, c, "", "", "Custom type")
     Value_ n c t -> (n, c, "", t, "Expression")
     Binop n c t -> (n, c, "", t, "Binary operator")
 
@@ -79,12 +79,12 @@ instance Aeson.FromJSON Module where
   parseJSON =
     Aeson.withObject "Module" $ \v -> do
       name <- v .: "name"
-      comment <- v .: "comment"
+      comment_ <- v .: "comment"
       unions <- v .: "unions" >>= traverse parseUnion
       aliases <- v .: "aliases" >>= traverse parseAlias
       values <- v .: "values" >>= traverse parseValue
       binops <- v .: "binops" >>= traverse parseBinop
-      return $ Module name comment
+      return $ Module name comment_
         (Map.fromList $ unions ++ aliases ++ values ++ binops)
 
 

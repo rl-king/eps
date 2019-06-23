@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
-module Main (main) where
+module Lib (main) where
 
 import Control.Monad (filterM, unless, when)
 import Control.Monad.IO.Class (liftIO)
