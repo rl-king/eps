@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeOperators #-}
 module Main (main) where
 
-import Control.Monad (unless)
+import Control.Monad (filterM, unless, when)
 import Control.Monad.IO.Class (liftIO)
 import Control.Concurrent.STM.TVar (TVar, newTVar, readTVar, modifyTVar', writeTVar)
 import Control.Concurrent (forkIO)
@@ -42,20 +42,6 @@ data State =
   }
 
 
-
--- API
-
-
-type Api =
-  "search" :> QueryParam "term" Text :> Get '[JSON] [Search.Result] :<|>
-  Raw
-
-
-api :: Proxy Api
-api = Proxy
-
-
-
 -- MAIN
 
 
@@ -69,29 +55,30 @@ main = do
   runServer port state
 
 
+
+-- INDEX
+
+
 runIndex :: State -> IO ()
 runIndex State{_sIndex, _sPackages} = do
-  searchJsonExists <- doesFileExist "./cache/packagelist.json"
-  unless searchJsonExists fetchPackagesList
-  packageList <- readPackageList
-
-  allJsonExists <- doesFileExist "./cache/packagemodules.json"
-  unless allJsonExists (fetchModules packageList)
-  modules <- readModules
-
-  let packagesWithModules =
-        zipWith (\ms p -> p {_pModules = toModulesMap ms}) modules packageList
-      packagesAsMap =
-        Map.fromList $ (\p -> (_pName p, p)) <$> packagesWithModules
-      toModulesMap =
-        Map.fromList . fmap (\m -> (_mName m, m))
-
-  _ <- traverse (atomically . modifyTVar' _sIndex . Search.insert) packagesWithModules
-  _ <- atomically $ writeTVar _sPackages packagesAsMap
+  packages <- fetchPackages
+  _ <- traverse (atomically . modifyTVar' _sIndex . Search.insert) packages
+  _ <- atomically $ writeTVar _sPackages $
+    Map.fromList (fmap (\p -> (_pName p, p)) packages)
   return ()
 
 
+
 -- SERVER
+
+
+type Api =
+  "search" :> QueryParam "term" Text :> Get '[JSON] [Search.Result] :<|>
+  Raw
+
+
+api :: Proxy Api
+api = Proxy
 
 
 runServer :: Int -> State -> IO ()
@@ -124,52 +111,37 @@ handleSearch State{_sIndex, _sPackages} queryParam = do
       return []
 
 
+
 -- PACKAGESLIST
 
 
-readPackageList :: IO [Package]
-readPackageList = do
-  file <- LBS.readFile "./cache/packagelist.json"
-  case Aeson.eitherDecode file :: Either String [Package] of
-    Left err -> error err
-    Right packages -> return packages
+fetchPackages :: IO [Package]
+fetchPackages =
+  traverse fetchModules =<< fetchPackageList
 
 
-fetchPackagesList :: IO ()
-fetchPackagesList = do
+fetchPackageList :: IO [Package]
+fetchPackageList = do
   m <- Http.newManager TLS.tlsManagerSettings
   response <- request m "https://package.elm-lang.org/search.json"
-  LBS.writeFile "./cache/packagelist.json" (Http.responseBody response)
-
-
--- MODULESLIST
-
-
-readModules :: IO [[Module]]
-readModules = do
-  file <- LBS.readFile "./cache/packagemodules.json"
-  case Aeson.eitherDecode file :: Either String [[Module]] of
+  case Aeson.eitherDecode (Http.responseBody response) :: Either String [Package] of
     Left err -> error err
-    Right modules -> return modules
+    Right packages -> return $ take 5 packages
 
 
-fetchModules :: [Package] -> IO ()
-fetchModules packages = do
+fetchModules :: Package -> IO Package
+fetchModules package = do
   m <- Http.newManager TLS.tlsManagerSettings
-  response <- mapM (request m . toLatestVersionDocUrl) packages
-  LBS.writeFile "./cache/packagemodules.json" $
-    LBS.concat ["[", LBS.intercalate "," (fmap Http.responseBody response), "]"]
-
-
-toLatestVersionDocUrl :: Package -> String
-toLatestVersionDocUrl (Package pName _ pVersions _) =
-  intercalate ""
-  ["https://package.elm-lang.org/packages/"
-  , Text.unpack pName
-  , "/"
-  , (Text.unpack . last) pVersions
-  , "/docs.json"
-  ]
+  response <- (request m . toLatestVersionDocUrl) package
+  case Aeson.eitherDecode (Http.responseBody response) :: Either String [Module] of
+    Left err ->
+      error err
+    Right modules ->
+      return $ package {_pModules = Map.fromList $ fmap (\ms -> (_mName ms, ms)) modules}
+  where
+    toLatestVersionDocUrl Package{_pName, _pVersions} =
+      Text.unpack $ Text.intercalate "/"
+      ["https://package.elm-lang.org/packages", _pName, last _pVersions, "docs.json"]
 
 
 -- REQUEST
