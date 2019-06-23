@@ -100,9 +100,9 @@ extractModuleName :: Package -> [(Token, [Result.Info])]
 extractModuleName package@Package{_pModules} =
   let
     toKeyValuePairs module_@Module{_mName} =
-      (Token _mName, [Result.moduleRef package module_])
+      (\n -> (Token n, [Result.moduleRef package module_])) <$> Text.splitOn "." _mName
   in
-    toKeyValuePairs <$> Map.elems _pModules
+    concatMap toKeyValuePairs (Map.elems _pModules)
 
 
 
