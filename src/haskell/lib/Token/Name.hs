@@ -128,6 +128,6 @@ extractValueName package@Package{_pModules} =
         CustomType _ _ _ _ -> acc
 
     toPair module_ typeName =
-      (Token typeName, [Result.valueRef package module_ typeName])
+      (Token (Text.toLower typeName), [Result.valueRef package module_ typeName])
   in
     List.foldl' toKeyValuePairs [] _pModules

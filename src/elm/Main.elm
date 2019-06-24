@@ -432,6 +432,10 @@ styling =
         ]
     , sidebar =
         [ width (rem 15)
+        , Global.descendants
+            [ Global.a
+                [ textDecoration underline ]
+            ]
         ]
     , searchResults =
         [ flexGrow (int 1)
