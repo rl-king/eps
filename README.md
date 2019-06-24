@@ -1,11 +1,12 @@
-# eps
 [![Build Status](https://travis-ci.org/rl-king/eps.svg?branch=master)](https://travis-ci.org/rl-king/eps)
+# eps
+Elm package search that includes type signatures and documentation.
 
 ## Getting started
 Run `make haskell` to build and `make server` to start the server.
 
 For local dev, and not hitting the official package server all the time,
-run `Mock.cachePackages` on ghci. This Downloads all docs to `./cache`
+run `Mock.cachePackages` on ghci. This downloads all docs to `./cache`
 which can than be served by just running eps.
 
 ```
