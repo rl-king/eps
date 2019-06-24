@@ -63,10 +63,10 @@ init : flags -> Url -> Browser.Navigation.Key -> ( Model, Cmd Msg )
 init _ location key =
     ( { key = key
       , searchResults = Nothing
-      , searchTerm = "core Maybe"
+      , searchTerm = "Task core perform"
       , bounce = Nothing
       }
-    , requestSearchTerm "core Maybe"
+    , requestSearchTerm "Task core perform"
     )
 
 
@@ -147,7 +147,7 @@ viewHeader : Model -> Html Msg
 viewHeader model =
     header [ css styling.header ]
         [ h1 [ css styling.title ] [ text "EPS beta" ]
-        , form []
+        , div []
             [ label [] [ text "Search" ]
             , input
                 [ onInput OnSearchTermInput
@@ -170,11 +170,11 @@ viewResults model =
             [ div [ css styling.sidebar ]
                 [ h2 [] [ text "Packages" ]
                 , ul [] <|
-                    List.map (\p -> li [] [ text p.packageName ]) <|
+                    List.map (\p -> li [] [ link PackageLink p [] [ text p.packageName ] ]) <|
                         List.filter ((==) Package << .category) results
                 , h2 [] [ text "Modules" ]
                 , ul [] <|
-                    List.map (\p -> li [] [ text p.packageName ]) <|
+                    List.map (\p -> li [] [ link ModuleLink p [] [ text p.moduleName ] ]) <|
                         List.filter ((==) Module << .category) results
                 ]
             , ul [ css styling.searchResults ] <|
@@ -194,51 +194,47 @@ viewResult result =
         Package ->
             div [ css styling.searchResult ]
                 [ header [ css styling.searchResultHeader ]
-                    [ link PackageLink
-                        result
-                        [ css styling.searchResultPackageName ]
-                        [ text result.packageName ]
-                    ]
+                    [ link PackageLink result [] [ h3 [] [ text result.packageName ] ] ]
                 , div [ css styling.searchResultBody ]
-                    -- [ fromUnstyled <|
-                    --     Markdown.toHtml [ Html.Attributes.class "markdown" ]
-                    -- result.valueComment
                     [ footer [ css styling.searchResultFooter ]
                         [ viewResultCategory result.category
-                        , text (String.fromInt result.points)
                         ]
-
-                    -- ]
+                    , span [ css styling.points ]
+                        [ text (String.fromInt result.points) ]
                     ]
                 ]
 
         Module ->
             div [ css styling.searchResult ]
                 [ header [ css styling.searchResultHeader ]
-                    [ link ModuleLink
-                        result
-                        [ css styling.searchResultPackageName ]
-                        [ text result.moduleName ]
+                    [ link ModuleLink result [] [ h3 [] [ text result.moduleName ] ]
                     ]
                 , div [ css styling.searchResultBody ]
                     [ footer [ css styling.searchResultFooter ]
                         [ viewResultCategory result.category
-                        , text (String.fromInt result.points)
                         ]
+                    , span [ css styling.points ]
+                        [ text (String.fromInt result.points) ]
                     ]
                 ]
 
         Expression _ ->
             div [ css styling.searchResult ]
                 [ header [ css styling.searchResultHeader ]
-                    [ link ValueLink result [] [ viewResultSignature result ]
-                    ]
+                    [ link ValueLink result [] [ viewResultSignature result ] ]
                 , div [ css styling.searchResultBody ]
-                    [ footer [ css styling.searchResultFooter ]
-                        [ link PackageLink
-                            result
-                            [ css styling.searchResultPackageName ]
-                            [ text result.packageName ]
+                    [ footer [ css styling.searchResultDefFooter ]
+                        [ div []
+                            [ link PackageLink
+                                result
+                                [ css styling.searchResultPackageName ]
+                                [ text result.packageName ]
+                            , text " "
+                            , link ModuleLink
+                                result
+                                [ css styling.searchResultPackageName ]
+                                []
+                            ]
                         , viewResultCategory result.category
                         ]
                     , span [ css styling.points ]
@@ -247,22 +243,66 @@ viewResult result =
                 ]
 
 
+
+-- SIGNATURE
+
+
 viewResultSignature : SearchResult -> Html Msg
 viewResultSignature result =
     code [ css styling.searchResultSignature ]
         [ span [ css styling.searchResultValueName ]
-            [ text (result.moduleName ++ "." ++ result.valueName)
+            [ text result.moduleName
+            , text "."
+            , text result.valueName
             ]
         , text " : "
-        , text result.typeSignature
+        , span [] <|
+            List.intersperse (text " ") <|
+                List.map (viewSignaturePart result.packageName) <|
+                    toSigParts result.typeSignature
         ]
+
+
+viewSignaturePart : String -> SigPart -> Html Msg
+viewSignaturePart packageName part =
+    case part of
+        Single s ->
+            text s
+
+        WithModule s m ->
+            span [ css styling.sigPart ]
+                [ text s
+                , span [ css styling.sigPartModule ] [ text m ]
+                ]
+
+
+type SigPart
+    = Single String
+    | WithModule String String
+
+
+toSigParts : String -> List SigPart
+toSigParts =
+    let
+        split s =
+            case List.reverse (String.split "." s) of
+                [] ->
+                    Single s
+
+                defName :: [] ->
+                    Single s
+
+                defName :: rest ->
+                    WithModule defName (String.join "." (List.reverse rest))
+    in
+    List.map split << String.words
 
 
 viewResultCategory : Category -> Html Msg
 viewResultCategory category =
     span
         [ css styling.searchResultCategory
-        , style "background-color" (categoryToColor category)
+        , css [ backgroundColor (categoryToColor category) ]
         ]
         [ text (categoryToString category)
         ]
@@ -324,7 +364,8 @@ colors =
     , white = hex "FFFFFF"
     , blue = hex "005Eff"
     , red = hex "ff3636"
-    , green = hex "349033"
+    , green = hex "42C995"
+    , yellow = hex "FFD100"
     }
 
 
@@ -410,11 +451,16 @@ styling =
         ]
     , searchResultBody =
         []
-    , searchResultFooter =
+    , searchResultDefFooter =
         [ displayFlex
         , justifyContent spaceBetween
         , alignItems flexEnd
-        , marginTop (rem 1)
+        , marginTop (rem 0.5)
+        ]
+    , searchResultFooter =
+        [ displayFlex
+        , justifyContent flexEnd
+        , alignItems flexEnd
         ]
     , searchResultSignature =
         [ fontSize (ms 0)
@@ -424,11 +470,39 @@ styling =
         [ color colors.blue
         ]
     , searchResultPackageName =
-        [ color colors.green
+        [ fontSize (ms 0)
         ]
     , searchResultCategory =
-        [ padding2 (rem 0.15) (rem 0.5)
+        [ padding3 (rem 0.15) (rem 0.5) (rem 0.2)
+        , color colors.white
+        , borderRadius (px 2)
         ]
+    , sigPart =
+        [ position relative
+        , hover
+            [ Global.descendants
+                [ Global.span [ display inlineBlock ]
+                ]
+            ]
+        ]
+    , sigPartModule =
+        [ position absolute
+        , top (rem -0.5)
+        , left (pct 50)
+        , display none
+        , backgroundColor colors.green
+        , color colors.white
+        , padding2 (rem 0.25) (rem 0.75)
+        , transform (translate2 (pct -50) (pct -100))
+        , borderRadius (px 2)
+        , zIndex (int 2)
+        ]
+
+    -- , sigPartPackage =
+    --     [ whiteSpace noWrap
+    --     , color colors.grey
+    --     , display inlineBlock
+    -- ]
     , button =
         [ backgroundColor transparent
         , border zero
@@ -443,6 +517,8 @@ styling =
         [ position absolute
         , right (rem 1)
         , top (rem 1)
+        , fontSize (rem 1)
+        , color colors.grey
         ]
     }
 
@@ -478,6 +554,11 @@ globalStyling =
     , Global.h2
         [ margin3 (rem 0.15) zero (rem 0.5)
         , fontSize (ms 1)
+        , fontWeight (int 500)
+        ]
+    , Global.h3
+        [ margin3 (rem 0.15) zero (rem 0.25)
+        , fontSize (ms 2)
         , fontWeight (int 500)
         ]
     , Global.pre
@@ -593,17 +674,14 @@ categoryToString c =
             x
 
 
-categoryToColor : Category -> String
+categoryToColor : Category -> Color
 categoryToColor c =
     case c of
-        -- blue
         Package ->
-            "#3CA5EA"
+            colors.yellow
 
-        -- green
         Module ->
-            "#43DCC1"
+            colors.green
 
-        --yellow
         Expression _ ->
-            "#F1D027"
+            colors.blue
