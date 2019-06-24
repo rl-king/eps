@@ -3,30 +3,27 @@
 
 ## Getting started
 Run `make haskell` to build and `make server` to start the server.
-`make server` will check `./cache` directory for package files and
-fetch those if missing.
+
+For local dev, and not hitting the official package server all the time,
+run `Mock.cachePackages` on ghci. This Downloads all docs to `./cache`
+which can than be served by just running eps.
 
 ```
 all -- compile haskell and elm
 clearcache -- remove all files in ./cache
-elm -- compile elm to ./index.html
+elm -- compile elm
 haskell -- compile haskell
-server -- start haskell server
+server -- start eps server
 watch -- watch haskell files and compile on change
 ```
 
 ## Todo
-* Filter code out of docs
 * Extract factual information to help rank packages
   * How complete are the docs
     * Examples
   * Does it have tests
   * Dependencies
-* Maybe add more endpoints with indexed information
 * Search for uses of a data type
-
-## Typeface
-https://github.com/be5invis/Iosevka
 
 ## Idea
 https://github.com/elm/projects#package-search
