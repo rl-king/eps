@@ -1,10 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Token.TypeSig
-  ( Tokens
-  , Token
-  , empty
-  , size
+  ( TypeSigIndex
   , toList
   , query
   , tokenize
@@ -20,6 +17,7 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
+import qualified Data.Index as Index
 import qualified Search.Result as Result
 
 
@@ -27,35 +25,23 @@ import qualified Search.Result as Result
 -- DEFINITIONS
 
 
-newtype Tokens =
-  Tokens { tokens :: Map Token [Result.Info] }
-  deriving (Show)
+type TypeSigIndex =
+  Index.Index (Text, Int) Result.Info
 
 
-newtype Token =
-  Token { token :: (Text, Int)}
-  deriving (Eq, Ord, Show)
-
-
-empty :: Tokens
-empty =
-  Tokens Map.empty
-
-
-size :: Tokens -> Int
-size (Tokens tokens) =
-  Map.size tokens
+type TypeSigToken =
+  Index.Token (Text, Int)
 
 
 -- QUERY
 
 
-query :: Text -> Tokens -> [(Result.Info, Int)]
-query term (Tokens index) =
+query :: Text -> TypeSigIndex -> [(Result.Info, Int)]
+query term index =
   Map.toList . List.foldl' lookupTokens Map.empty $ toTokens term
   where
     lookupTokens acc termPart =
-      case Map.lookup termPart index of
+      case Index.lookup termPart index of
         Nothing ->
           acc
         Just xs ->
@@ -66,12 +52,12 @@ query term (Tokens index) =
 -- FUNCTION SIGNATURES
 
 
-tokenize :: Package -> Tokens -> Tokens
-tokenize package (Tokens tokens) =
-  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extract package)
+tokenize :: Package -> TypeSigIndex -> TypeSigIndex
+tokenize package index =
+  foldl' (\ts (k, v) -> Index.insertList k v ts) index (extract package)
 
 
-extract :: Package -> [(Token, [Result.Info])]
+extract :: Package -> [(TypeSigToken, [Result.Info])]
 extract package@Package{_pModules} =
   let
     toKeyValuePairs acc module_@Module{_mDefs} =
@@ -85,8 +71,7 @@ extract package@Package{_pModules} =
         CustomType{} ->       acc
 
     toPair module_ typeName type_ =
-      (\x -> (x ,[Result.valueRef package module_ typeName])) <$>
-      toTokens type_
+      (\x -> (x ,[Result.valueRef package module_ typeName])) <$> toTokens type_
   in
     List.foldl' toKeyValuePairs [] _pModules
 
@@ -95,7 +80,7 @@ extract package@Package{_pModules} =
   toTokens "(a -> Task x b) -> Task x a -> Task x b"
   --> [("->",3),("Task",3),("a",2),("b",3),("c",2)]
 -}
-toTokens :: Text -> [Token]
+toTokens :: Text -> [TypeSigToken]
 toTokens =
   let
     removeModules =
@@ -104,13 +89,13 @@ toTokens =
     removeChars =
       Text.filter (not . flip elem ['(', ')', ',' , '}', '{'])
   in
-    fmap Token . countOccurrences . removeModules .
+    fmap Index.toToken . countOccurrences . removeModules .
     simplifyTypeVariables . Text.words . removeChars
 
 
-toList :: [Token] -> [(Text, Int)]
+toList :: [TypeSigToken] -> [(Text, Int)]
 toList =
-  fmap token
+  fmap Index.unpackToken
 
 
 {-|

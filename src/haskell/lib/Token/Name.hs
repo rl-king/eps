@@ -1,11 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Token.Name
-  ( Tokens
-  , Token
-  , empty
-  , size
-  , keys
+  ( NameIndex
   , query
   , tokenizePackageNames
   , tokenizeModuleNames
@@ -20,6 +16,7 @@ import Data.Map.Strict (Map)
 import Data.Text (Text)
 
 import Data.Package as Package
+import qualified Data.Index as Index
 import qualified Search.Result as Result
 
 
@@ -27,41 +24,24 @@ import qualified Search.Result as Result
 -- DEFINITIONS
 
 
-newtype Tokens =
-  Tokens { tokens :: Map Token [Result.Info] }
-  deriving (Show)
+type NameIndex =
+  Index.Index Text Result.Info
 
 
-newtype Token =
-  Token { token :: Text }
-  deriving (Eq, Ord, Show)
-
-
-empty :: Tokens
-empty =
-  Tokens Map.empty
-
-
-size :: Tokens -> Int
-size (Tokens tokens) =
-  Map.size tokens
-
-
-keys :: Tokens -> [Token]
-keys (Tokens tokens) =
-  Map.keys tokens
+type NameToken =
+  Index.Token Text
 
 
 -- QUERY
 
 
-query :: Text -> Int -> Tokens -> Map Result.Info Int
-query term points (Tokens index) =
+query :: Text -> Int -> NameIndex -> Map Result.Info Int
+query term points index =
   List.foldl' lookupTokens Map.empty $
-  Token <$> Text.words term
+  Index.toToken <$> Text.words term
   where
     lookupTokens acc termPart =
-      case Map.lookup termPart index of
+      case Index.lookup termPart index of
         Nothing ->
           acc
         Just xs ->
@@ -72,16 +52,16 @@ query term points (Tokens index) =
 -- PACKAGE NAMES
 
 
-tokenizePackageNames :: Package -> Tokens -> Tokens
-tokenizePackageNames package (Tokens tokens) =
-  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractPackageName package)
+tokenizePackageNames :: Package -> NameIndex -> NameIndex
+tokenizePackageNames package index =
+  foldl' (\ts (k, v) -> Index.insertList k v ts) index (extractPackageName package)
 
 
-extractPackageName :: Package -> Maybe (Token, [Result.Info])
+extractPackageName :: Package -> Maybe (NameToken, [Result.Info])
 extractPackageName package@Package{_pName} =
   case Text.splitOn "/" _pName of
     _:name:_ ->
-      Just (Token name, [Result.packageRef package])
+      Just (Index.toToken name, [Result.packageRef package])
 
     _ ->
       Nothing
@@ -91,16 +71,16 @@ extractPackageName package@Package{_pName} =
 -- MODULE NAMES
 
 
-tokenizeModuleNames :: Package -> Tokens -> Tokens
-tokenizeModuleNames package (Tokens tokens) =
-  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractModuleName package)
+tokenizeModuleNames :: Package -> NameIndex -> NameIndex
+tokenizeModuleNames package index =
+  foldl' (\ts (k, v) -> Index.insertList k v ts) index (extractModuleName package)
 
 
-extractModuleName :: Package -> [(Token, [Result.Info])]
+extractModuleName :: Package -> [(NameToken, [Result.Info])]
 extractModuleName package@Package{_pModules} =
   let
     toKeyValuePairs module_@Module{_mName} =
-      (\n -> (Token n, [Result.moduleRef package module_])) <$> Text.splitOn "." _mName
+      (\n -> (Index.toToken n, [Result.moduleRef package module_])) <$> Text.splitOn "." _mName
   in
     concatMap toKeyValuePairs (Map.elems _pModules)
 
@@ -109,12 +89,12 @@ extractModuleName package@Package{_pModules} =
 -- VALUE NAMES
 
 
-tokenizeValueNames :: Package -> Tokens -> Tokens
-tokenizeValueNames package (Tokens tokens) =
-  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractValueName package)
+tokenizeValueNames :: Package -> NameIndex -> NameIndex
+tokenizeValueNames package index =
+  foldl' (\ts (k, v) -> Index.insertList k v ts) index (extractValueName package)
 
 
-extractValueName :: Package -> [(Token, [Result.Info])]
+extractValueName :: Package -> [(NameToken, [Result.Info])]
 extractValueName package@Package{_pModules} =
   let
     toKeyValuePairs acc module_@Module{_mDefs} =
@@ -128,6 +108,6 @@ extractValueName package@Package{_pModules} =
         CustomType _ _ _ _ -> acc
 
     toPair module_ typeName =
-      (Token (Text.toLower typeName), [Result.valueRef package module_ typeName])
+      (Index.toToken (Text.toLower typeName), [Result.valueRef package module_ typeName])
   in
     List.foldl' toKeyValuePairs [] _pModules

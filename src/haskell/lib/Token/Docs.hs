@@ -1,10 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Token.Docs
-  ( Tokens
-  , Token
-  , empty
-  , size
+  ( DocsIndex
   , query
   , tokenizeSummaries
   , tokenizeComments
@@ -20,6 +17,7 @@ import Data.Set (Set)
 import Data.Text (Text)
 
 import Data.Package as Package
+import qualified Data.Index as Index
 import qualified Search.Result as Result
 import qualified NLP.Stemmer as Stem
 
@@ -28,35 +26,24 @@ import qualified NLP.Stemmer as Stem
 -- DEFINITIONS
 
 
-newtype Tokens =
-  Tokens { tokens :: Map Token [Result.Info] }
-  deriving (Show)
+type DocsIndex =
+  Index.Index Text Result.Info
 
 
-newtype Token =
-  Token { token :: Text }
-  deriving (Eq, Ord, Show)
+type DocsToken =
+  Index.Token Text
 
-
-empty :: Tokens
-empty =
-  Tokens Map.empty
-
-
-size :: Tokens -> Int
-size (Tokens tokens) =
-  Map.size tokens
 
 
 -- QUERY
 
 
-query :: Text -> Tokens -> Map Result.Info Int
-query term (Tokens index) =
+query :: Text -> DocsIndex -> Map Result.Info Int
+query term index =
   List.foldl' lookupTokens Map.empty $ toTokens term
   where
     lookupTokens acc termPart =
-      case Map.lookup termPart index of
+      case Index.lookup termPart index of
         Nothing ->
           acc
         Just xs ->
@@ -66,12 +53,12 @@ query term (Tokens index) =
 -- DOCS
 
 
-tokenizeSummaries :: Package -> Tokens -> Tokens
-tokenizeSummaries package (Tokens tokens) =
-  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractSummary package)
+tokenizeSummaries :: Package -> DocsIndex -> DocsIndex
+tokenizeSummaries package index =
+  foldl' (\ts (k, v) -> Index.insertList k v ts) index (extractSummary package)
 
 
-extractSummary :: Package -> [(Token, [Result.Info])]
+extractSummary :: Package -> [(DocsToken, [Result.Info])]
 extractSummary package@Package{_pSummary} =
   let
     toPair token =
@@ -84,12 +71,12 @@ extractSummary package@Package{_pSummary} =
 -- COMMENTS
 
 
-tokenizeComments :: Package -> Tokens -> Tokens
-tokenizeComments package (Tokens tokens) =
-  Tokens $ foldl' (\ts (k, v) -> Map.insertWith (++) k v ts) tokens (extractComments package)
+tokenizeComments :: Package -> DocsIndex -> DocsIndex
+tokenizeComments package index =
+  foldl' (\ts (k, v) -> Index.insertList k v ts) index (extractComments package)
 
 
-extractComments :: Package -> [(Token, [Result.Info])]
+extractComments :: Package -> [(DocsToken, [Result.Info])]
 extractComments package@Package{_pModules} =
   let
     toComments acc module_@Module{_mDefs} =
@@ -115,9 +102,9 @@ extractComments package@Package{_pModules} =
 -- TOKENIZATION
 
 
-toTokens :: Text -> [Token]
+toTokens :: Text -> [DocsToken]
 toTokens =
-  fmap Token . List.nub . Stem.run . filterStopWords .
+  fmap Index.toToken . List.nub . Stem.run . filterStopWords .
   Text.words . Text.toLower . filterPunctuation
 
 

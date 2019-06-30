@@ -13,6 +13,7 @@ import Data.Text (Text)
 import qualified Token.Docs as Docs
 import qualified Token.TypeSig as TypeSig
 import qualified Token.Name as Name
+import qualified Data.Index as Index
 import Data.Package (Package)
 import qualified Search.Result as Result
 import Search.Result (Result)
@@ -24,12 +25,12 @@ import Search.Result (Result)
 
 data Index =
   Index
-  { _iTypeSignatures :: TypeSig.Tokens
-  , _iDefNames :: Name.Tokens
-  , _iModuleNames :: Name.Tokens
-  , _iPackageNames :: Name.Tokens
-  , _iSummaries :: Docs.Tokens
-  , _iComments :: Docs.Tokens
+  { _iTypeSignatures :: TypeSig.TypeSigIndex
+  , _iDefNames :: Name.NameIndex
+  , _iModuleNames :: Name.NameIndex
+  , _iPackageNames :: Name.NameIndex
+  , _iSummaries :: Docs.DocsIndex
+  , _iComments :: Docs.DocsIndex
   }
 
 
@@ -47,23 +48,23 @@ insert package (Index ts vn mn pn d c) =
 emptyIndex :: Index
 emptyIndex =
   Index
-  TypeSig.empty
-  Name.empty
-  Name.empty
-  Name.empty
-  Docs.empty
-  Docs.empty
+  Index.empty
+  Index.empty
+  Index.empty
+  Index.empty
+  Index.empty
+  Index.empty
 
 
 indexStats :: Index -> IO ()
 indexStats (Index ts vn mn pn d c) =
   traverse_ print
-    [ show (TypeSig.size ts) ++ " : indexed type signatures"
-    , show (Name.size vn) ++ " : indexed value names"
-    , show (Name.size mn) ++ " : indexed module names"
-    , show (Name.size pn) ++ " : indexed package names"
-    , show (Docs.size d) ++ " : indexed summaries"
-    , show (Docs.size c) ++ " : indexed comments"
+    [ show (Index.size ts) ++ " : indexed type signatures"
+    , show (Index.size vn) ++ " : indexed value names"
+    , show (Index.size mn) ++ " : indexed module names"
+    , show (Index.size pn) ++ " : indexed package names"
+    , show (Index.size d) ++ " : indexed summaries"
+    , show (Index.size c) ++ " : indexed comments"
     ]
 
 
